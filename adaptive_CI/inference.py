@@ -56,16 +56,8 @@ def aw_stats(score, evalwts, truth):
     return np.stack((estimate, stderr, bias, cover, tstat, error, truth))
 
 
+
 def aw_contrast_stderr(score, evalwts, estimate):
-    h_diff = evalwts * (score - estimate)
-    numerator = np.sum((h_diff[:, :1] - h_diff[:, 1:]) ** 2, axis = 0) 
-    h_sum = evalwts.sum(0)
-    denominator = h_sum[0] * h_sum[1:]
-    return np.sqrt(numerator / denominator)
-
-
-
-def aw_contrast_stderr2(score, evalwts, estimate):
     h_sum = evalwts.sum(0)
     T, K = np.shape(score)
     diff = score - estimate
@@ -87,17 +79,13 @@ def aw_contrasts(score, evalwts, truth):
     contrast_bias = contrast_estimate - contrast_truth
     contrast_mse = contrast_bias ** 2
 
+
     contrast_stderr = aw_contrast_stderr(score, evalwts, estimate)
     contrast_tstat = aw_tstat(contrast_estimate, contrast_stderr, contrast_truth)
     contrast_cover = (np.abs(contrast_tstat) < 1.96).astype(np.float_)
 
-    contrast_stderr2 = aw_contrast_stderr2(score, evalwts, estimate)
-    contrast_tstat2 = aw_tstat(contrast_estimate, contrast_stderr2, contrast_truth)
-    contrast_cover2 = (np.abs(contrast_tstat2) < 1.96).astype(np.float_)
-
     return np.stack((contrast_truth, contrast_estimate,  contrast_bias, contrast_mse, 
-        contrast_stderr,  contrast_tstat, contrast_cover,  
-        contrast_stderr2,  contrast_tstat2, contrast_cover2)) 
+        contrast_stderr,  contrast_tstat, contrast_cover)) 
 
 def naive_stats(rewards, arms, truth, K, weights=None):
     T = len(rewards)

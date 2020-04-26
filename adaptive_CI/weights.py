@@ -1,3 +1,7 @@
+"""
+This script contains helper functions to compute evaluation weights. 
+"""
+
 from adaptive_CI.compute import *
 import numpy as np
 

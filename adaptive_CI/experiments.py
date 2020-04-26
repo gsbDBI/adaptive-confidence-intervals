@@ -1,3 +1,7 @@
+"""
+This script includes helper functions to generate data, including agents, environemnt and data generating process. 
+"""
+
 import numpy as np
 from adaptive_CI.compute import apply_floor, draw, expand
 

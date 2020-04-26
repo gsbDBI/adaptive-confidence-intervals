@@ -1,3 +1,7 @@
+"""
+This script contains helping functions for better saving format. 
+"""
+
 import numpy as np
 import pandas as pd
 import os

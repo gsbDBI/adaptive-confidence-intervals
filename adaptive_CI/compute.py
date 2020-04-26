@@ -1,3 +1,7 @@
+"""
+This script includes helper functions to speed up computation.
+"""
+
 import numpy as np
 
 __all__ = ["groupsum",

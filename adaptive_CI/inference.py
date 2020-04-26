@@ -1,5 +1,8 @@
-import numpy as np
+"""
+This script contains helper functions to do inference including computing scores and statistics of arm values and contrasts.
+"""
 
+import numpy as np
 from adaptive_CI.compute import *
 
 __all__ = [

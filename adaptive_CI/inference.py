@@ -12,14 +12,23 @@ __all__ = [
     "wdecorr_stats",
     "naive_stats",
     "sample_mean",
-    "aw_conditions",
 ]
 
 
-
-
-
 def aw_scores(rewards, arms, assignment_probs, muhat=None):
+    """
+    Compute leave-future-out AIPW scores. Return IPW scores if muhat is None.
+    e[t] and mu[t, w] are fitted based on history up to t-1.
+
+    INPUT
+        - rewards: observed rewards of shape [T]
+        - arms: pulled arms of shape [T]
+        - assignment_probs: probability of pulling arms of shape [T, K]
+        - muhat: plug-in estimator for arms of shape [T, K]
+
+    OUTPUT
+        - scores: AIPW scores of shape [T, K]
+    """
     T, K = assignment_probs.shape
     balwts = 1 / collect(assignment_probs, arms)
     scores = expand(balwts * rewards, arms, K)  # Y[t]*W[t]/e[t] term
@@ -29,15 +38,47 @@ def aw_scores(rewards, arms, assignment_probs, muhat=None):
 
 
 def aw_estimate(score, evalwts):
+    """
+    Compute weighted estimates of arm values
+
+    INPUT:
+        - score: AIPW scores of shape [T, K]
+        - evalwts: evaluation weights of shape [T]
+
+    OUTPUT:
+        - estimates: shape [K]
+    """
     return np.sum(evalwts * score, 0) / np.sum(evalwts, 0)
 
 
 def aw_stderr(score, evalwts, estimate):
+    """
+    Compute standard error of estimates of arm values
+
+    INPUT:
+        - score: AIPW scores of shape [T, K]
+        - evalwts: evaluation weights of shape [T]
+        - estimate: weighted estimates of arm values of shape [K] 
+
+    OUTPUT:
+        - standard error: shape [K]
+    """
     return np.sqrt(np.sum(evalwts ** 2 * (score - estimate)
                           ** 2, 0)) / np.sum(evalwts, 0)
 
 
 def aw_tstat(estimate, stderr, truth):
+    """
+    Compute t-statistic of estimates of arm values:
+
+    INPUT:
+        - estimate: weighted estimates of arm values of shape [K]
+        - stderr: standard error of estimators of arm values of shape [K]
+        - truth: true arm values of shape [K]
+
+    OUTPUT:
+        - out: t-statistic of estimates of arm values of shape [K]
+    """
     out = (estimate - truth) / stderr
     out[stderr == 0] = np.nan
     return out
@@ -45,6 +86,16 @@ def aw_tstat(estimate, stderr, truth):
 
 def aw_stats(score, evalwts, truth):
     """
+    Compute statistics of arm estimation
+
+    INPUT:
+        - score: AIPW scores of shape [T, K]
+        - evalwts: evaluation weights of shape [T]
+        - truth: true arm values of shape [K]
+
+    OUTPUT:
+        - statistics of arm estimates: [estimate, S.E., bias, 95%-coverage, t-statistic, MSE, truth]
+
     output: dim (len(stats), K)
     """
     estimate = aw_estimate(score, evalwts)
@@ -56,22 +107,40 @@ def aw_stats(score, evalwts, truth):
     return np.stack((estimate, stderr, bias, cover, tstat, error, truth))
 
 
-
 def aw_contrast_stderr(score, evalwts, estimate):
+    """
+    Compute standard error of estimates of arm contrasts between arm[0] and the remaining arms
+
+    INPUT:
+        - score: AIPW scores of shape [T, K]
+        - evalwts: evaluation weights of shape [T]
+        - estimate: weighted estimates of arm values of shape [K] 
+
+    OUTPUT:
+        - standard error: shape [K-1]
+    """
+
     h_sum = evalwts.sum(0)
     T, K = np.shape(score)
     diff = score - estimate
-    numerator = h_sum[1:]* evalwts[:, :1] * diff[:, :1] - h_sum[0] * evalwts[:, 1:] * diff[:, 1:]
+    numerator = h_sum[1:] * evalwts[:, :1] * diff[:, :1] - \
+        h_sum[0] * evalwts[:, 1:] * diff[:, 1:]
     numerator = np.sum(numerator ** 2, axis=0)
     denominator = h_sum[0]**2 * h_sum[1:]**2
     return np.sqrt(numerator / denominator)
 
 
-
 def aw_contrasts(score, evalwts, truth):
     """
-    output: dim (len(stats), K-1)
-    estimate contrasts between arm 0 and the rest arms
+    Compute statistics of arm contrast estimations
+
+    INPUT:
+        - score: AIPW scores of shape [T, K]
+        - evalwts: evaluation weights of shape [T]
+        - truth: true arm values of shape [K]
+
+    OUTPUT:
+        - statistics of arm contrasts: [estimate, S.E., bias, 95%-coverage, t-statistic, MSE, truth]
     """
     estimate = aw_estimate(score, evalwts)
     contrast_estimate = estimate[0] - estimate[1:]
@@ -79,15 +148,29 @@ def aw_contrasts(score, evalwts, truth):
     contrast_bias = contrast_estimate - contrast_truth
     contrast_mse = contrast_bias ** 2
 
-
     contrast_stderr = aw_contrast_stderr(score, evalwts, estimate)
-    contrast_tstat = aw_tstat(contrast_estimate, contrast_stderr, contrast_truth)
+    contrast_tstat = aw_tstat(
+        contrast_estimate, contrast_stderr, contrast_truth)
     contrast_cover = (np.abs(contrast_tstat) < 1.96).astype(np.float_)
 
-    return np.stack((contrast_truth, contrast_estimate,  contrast_bias, contrast_mse, 
-        contrast_stderr,  contrast_tstat, contrast_cover)) 
+    return np.stack((contrast_truth, contrast_estimate,  contrast_bias, contrast_mse,
+                     contrast_stderr,  contrast_tstat, contrast_cover))
+
 
 def naive_stats(rewards, arms, truth, K, weights=None):
+    """
+    Compute naive sample mean estimator
+
+    INPUT:
+        - rewards: observed rewards of shape [T]
+        - arms: pulled arms of shape [T]
+        - truth: true arm values of shape [K]
+        - K: number of arms
+        - weights: weights applied to samples of shape [K]
+
+    OUTPUT:
+        - sample mean statistics of arm values: [estimate, S.E., bias, 95%-coverage, t-statistic, MSE, truth]
+    """
     T = len(rewards)
     if weights is None:
         weights = np.ones(T)
@@ -107,8 +190,19 @@ def naive_stats(rewards, arms, truth, K, weights=None):
 
 def wdecorr_stats(arms, rewards, K, W_lambdas, truth):
     """
+    Compute W-decorrelation estimates of arm values
     Adapted from Multi-armed Bandits.ipynb in https://github.com/yash-deshpande/decorrelating-linear-models.
     Source: Deshpande, Y., Mackey, L., Syrgkanis, V., & Taddy, M. (2017). Accurate inference for adaptive linear models. arXiv preprint arXiv:1712.06695.
+
+    INPUT: 
+        - rewards: observed rewards of shape [T]
+        - arms: pulled arms of shape [T]
+        - K: number of arms
+        - W_lambdas: bias-variance tradeoff parameter lambda in W-decorrelation paper, of shape [T]
+        - truth: true arm values of shape [K]
+
+    OUTPUT:
+        - W-decorrelation statistics of arm values: [estimate, S.E., bias, 95%-coverage, t-statistic, MSE, truth]
     """
     T = len(arms)
 
@@ -154,26 +248,20 @@ def wdecorr_stats(arms, rewards, K, W_lambdas, truth):
 
 
 def sample_mean(rewards, arms, K):
-    # returb F_t measured sample mean
+    """
+    Compute F_{t} measured sample mean estimator
+
+    INPUT: 
+        - rewards: observed rewards of shape [T]
+        - arms: pulled arms of shape [T]
+        - K: number of arms
+
+    Output:
+        - estimate: F_{t} measured sample mean estimator of shape [T,K]
+    """
+    # return F_t measured sample mean
     T = len(arms)
     W = expand(np.ones(T), arms, K)
     Y = expand(rewards, arms, K)
     estimate = np.cumsum(W * Y, 0) / np.maximum(np.cumsum(W, 0), 1)
     return estimate
-
-
-def aw_conditions(wts, probs):
-    h2e = wts ** 2 / probs
-    sumh4e3 = np.sum(wts ** 4 / probs ** 3, 0)
-    sumh = np.sum(wts, 0)
-    maxh2e = np.amax(h2e, 0)
-    sumh2e = np.sum(h2e, 0)
-
-    cond51 = maxh2e / sumh2e  # [K]
-    cond52 = sumh ** 2 / sumh2e  # [K]
-    cond6num = sumh2e  # [K]
-    cond7num = sumh4e3  # [K]
-    return np.stack([cond51, cond52, cond6num, cond7num])
-
-
-

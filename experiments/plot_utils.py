@@ -348,7 +348,7 @@ def plot_hist(df_stats, noise_func='uniform', name=None):
                       row_order=[
                           f'nosignal_{noise_func}', f'lowSNR_{noise_func}', f'highSNR_{noise_func}'],
                       hue="statistic",
-                      hue_order=['relerror', 't-stat'],
+                      hue_order=['t-stat'],
                       col_order=methods,
                       legend_out=True,
                       sharex=False,
@@ -376,7 +376,7 @@ def plot_hist(df_stats, noise_func='uniform', name=None):
 
     # Add legend
     handles, labels = g._legend_data.values(), g._legend_data.keys()
-    g.fig.legend(labels=['relative error', 'CLT t-stat', 'N(0,1)'],
+    g.fig.legend(labels=['CLT t-stat', 'N(0,1)'],
                  loc='center',  ncol=3, bbox_to_anchor=(0.5, 0.03))
     g.set_xlabels("")
     g.set_ylabels("")

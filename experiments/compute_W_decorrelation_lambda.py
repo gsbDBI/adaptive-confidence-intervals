@@ -64,16 +64,6 @@ def calculate_W_lambda(config, pcts, TT):
                 np.sum(arm_counts[-1]) == t and f'{np.sum(arm_counts[-1])} not equal to  {t}')
         arm_counts = np.array(arm_counts)
 
-        """
-        # size (#percentiles, #arms)
-        pct_arm_counts = np.percentile(arm_counts, pcts, axis=0)
-        # size (#percentiles)
-        min_pct_arm_counts = np.amin(pct_arm_counts, axis=1)
-
-        # size (#percentile, t), a list of W_lambdas for different percentiles
-        W_lambdas_t = [np.ones(t)*min_pct/np.log(t)
-                       for min_pct in min_pct_arm_counts]
-        """
         def compute_lambda_per_arm(sythetic_arm_counts):
             pct_arm_counts = np.percentile(synthetic_arm_counts, pcts, axis=0) # size (#percentiles, 2)
             min_pct_arm_counts = np.amin(pct_arm_counts, axis=1) # size (#percentiles)

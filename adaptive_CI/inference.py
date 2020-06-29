@@ -233,7 +233,7 @@ def wdecorr_stats(arms, rewards, K, W_lambdas, truth):
         # Update w_t = (1/(norm{x_t}^2+lambda_t)) (x_t - W_{t-1} X_{t-1} x_t)
         np.copyto(w, -WX[:, arm])
         w[arm] += 1
-        w /= (1.0 + W_lambdas[t])
+        w /= (1.0 + W_lambdas[:, t])
         # Update beta_t = beta_{t-1} + w_t (y_t - <beta_OLS, x_t>)
         beta += w * (reward - samplemean[arm])
         # Update W_tX_t = W_{t-1}X_{t-1} + w_t x_t^T

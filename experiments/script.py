@@ -2,6 +2,8 @@
 This script runs simulations reported in our paper Confidence Intervals for Policy Evaluation in Adaptive Experiments (https://arxiv.org/abs/1911.02768)
 """
 
+import sys
+sys.path.insert(0, "/home/rhzhan/adaptive-confidence-intervals/")
 from time import time
 from sys import argv
 from random import choice
@@ -13,8 +15,6 @@ from adaptive_CI.compute import stick_breaking
 from adaptive_CI.saving import *
 from adaptive_CI.inference import *
 from adaptive_CI.weights import twopoint_stable_var_ratio
-import sys
-sys.path.insert(0, "/home/rhzhan/adaptive-confidence-intervals/")
 
 
 # ----------------------------------------------------

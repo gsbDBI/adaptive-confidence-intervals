@@ -62,7 +62,9 @@ def calculate_W_lambda(config, pcts, TT):
                                for w in range(K)])  # size (sim_W, #arms)
             assert(
                 np.sum(arm_counts[-1]) == t and f'{np.sum(arm_counts[-1])} not equal to  {t}')
+        arm_counts = np.array(arm_counts)
 
+        """
         # size (#percentiles, #arms)
         pct_arm_counts = np.percentile(arm_counts, pcts, axis=0)
         # size (#percentiles)
@@ -71,6 +73,21 @@ def calculate_W_lambda(config, pcts, TT):
         # size (#percentile, t), a list of W_lambdas for different percentiles
         W_lambdas_t = [np.ones(t)*min_pct/np.log(t)
                        for min_pct in min_pct_arm_counts]
+        """
+        def compute_lambda_per_arm(sythetic_arm_counts):
+            pct_arm_counts = np.percentile(synthetic_arm_counts, pcts, axis=0) # size (#percentiles, 2)
+            min_pct_arm_counts = np.amin(pct_arm_counts, axis=1) # size (#percentiles)
+            W_lambdas_t_per_arm = [np.ones(t) * min_pct / np.log(t)
+                    for min_pct in min_pct_arm_counts] # size (#percentile, t)
+            return np.array(W_lambdas_t_per_arm)
+
+        W_lambdas_t = np.zeros((len(pcts), K, t)) # size(#percentile, K, t)
+        for w in range(K):
+            synthetic_arm_counts = np.zeros((config['sim_W'], 2))
+            synthetic_arm_counts[:, 0] = arm_counts[:, w]
+            synthetic_arm_counts[:, 1] = t - arm_counts[:, w]
+            W_lambdas_t[:, w, :] = compute_lambda_per_arm(synthetic_arm_counts)
+        
         W_lambdas.append(W_lambdas_t)
     return W_lambdas
 
@@ -97,7 +114,6 @@ config = dict(
 )
 percentiles = [5, 15, 35, 50]
 TT = [1000, 5000, 10000, 20000]
-
 # Do Monte-Carlo simulations to compute W_lambda.
 W_lambdas = calculate_W_lambda(config, percentiles, TT)
 for t, W_lam in zip(TT, W_lambdas):

@@ -3,11 +3,11 @@ This script pre-computes bias-variance tradeoff parameter W_lambda in W-decorrel
 Paper reference: Deshpande, Y., Mackey, L., Syrgkanis, V., & Taddy, M. (2017). Accurate inference for adaptive linear models. arXiv preprint arXiv:1712.06695.
 """
 
+import sys
+sys.path.insert(0, "/home/rhzhan/adaptive-confidence-intervals/")
 from time import time
 from adaptive_CI.experiments import run_mab_experiment
 import numpy as np
-import sys
-sys.path.insert(0, "/home/rhzhan/adaptive-confidence-intervals/")
 
 
 def calculate_W_lambda(config, pcts, TT):

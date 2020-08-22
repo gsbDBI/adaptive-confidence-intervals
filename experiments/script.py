@@ -36,7 +36,7 @@ except IndexError:
 
 results_list = []
 start_time = time()
-num_sims = 1000
+num_sims = 500
 save_every = 10
 
 
@@ -166,7 +166,7 @@ for s in range(num_sims):
 
     # save results every _save_every_ simulations
     if (s+1) % save_every == 0 or s == num_sims-1:
-        write_dir = os.path.join(os.getcwd(), 'results')
+        write_dir = os.path.join(os.getcwd(), 'results_v2')
         if not os.path.exists(write_dir):
             os.makedirs(write_dir)
         filename = compose_filename(

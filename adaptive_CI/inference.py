@@ -221,9 +221,10 @@ def population_bernstein_stats(rewards, arms, truth, K, alpha=0.10):
     stderr = np.sqrt(np.sum(W ** 2 * (Y - estimate) ** 2, axis = 0)
                      ) / np.maximum(1, Tw)
     bhat =  np.amax(np.abs(Y - estimate) * W, axis=0)
+    v = np.sum(W * (Y - estimate) ** 2, axis=0) / np.maximum(1, Tw)
 
     pop_bernstein_q = np.log(2 / alpha) / Tw * (bhat * np.sqrt(Tw) / 3 +
-                                          np.sqrt(bhat ** 2 * Tw / 9 + 2 * stderr ** 2 * Tw / np.log(2 / alpha)))
+                                          np.sqrt(bhat ** 2 * Tw / 9 + 2 * v * Tw / np.log(2 / alpha)))
     ci_r = pop_bernstein_q / np.sqrt(Tw)
 
     bias = estimate - truth
@@ -256,7 +257,8 @@ def empirical_bernstein_stats(rewards, arms, truth, K, R, alpha=0.10):
     stderr = np.sqrt(np.sum(W ** 2 * (Y - estimate) ** 2, 0)
                      ) / np.maximum(1, Tw)
 
-    empirical_bernstein = stderr * np.sqrt(2 * np.log(3 / alpha) / Tw) + 3 * R * np.log(3 / alpha) / Tw
+    v = np.sum(W * (Y - estimate) ** 2, axis=0) / np.maximum(1, Tw)
+    empirical_bernstein = np.sqrt(v) * np.sqrt(2 * np.log(3 / alpha) / Tw) + 3 * R * np.log(3 / alpha) / Tw
     ci_r = empirical_bernstein 
 
     bias = estimate - truth

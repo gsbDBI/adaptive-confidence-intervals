@@ -218,19 +218,19 @@ def population_bernstein_stats(rewards, arms, truth, K, alpha=0.10):
     Tw = np.sum(W, 0)
     Y = expand(rewards, arms, K)
     estimate = np.sum(W * Y, 0) / np.maximum(1, Tw)
-    stderr = np.sqrt(np.sum(W ** 2 * (Y - estimate) ** 2, axis = 0)
-                     ) / np.maximum(1, Tw)
     bhat =  np.amax(np.abs(Y - estimate) * W, axis=0)
     v = np.sum(W * (Y - estimate) ** 2, axis=0) / np.maximum(1, Tw)
 
     pop_bernstein_q = np.log(2 / alpha) / Tw * (bhat * np.sqrt(Tw) / 3 +
-                                          np.sqrt(bhat ** 2 * Tw / 9 + 2 * v * Tw / np.log(2 / alpha)))
+                                          np.sqrt(bhat ** 2 * Tw / 9 + 2 * v * Tw ** 2 / np.log(2 / alpha)))
     ci_r = pop_bernstein_q / np.sqrt(Tw)
 
     bias = estimate - truth
-    error = bias ** 2
     cover = (np.abs(bias) < ci_r).astype(np.float_)
 
+    error = bias ** 2
+    stderr = np.sqrt(np.sum(W ** 2 * (Y - estimate) ** 2, axis = 0)
+                     ) / np.maximum(1, Tw)
     out = np.stack((estimate, stderr, bias, cover,
                     [None] * K, error, ci_r * 2, truth))
     return out

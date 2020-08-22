@@ -56,8 +56,10 @@ for s in range(num_sims):
     """ Generate data """
     if noise_func == 'uniform':
         noise = np.random.uniform(-noise_scale, noise_scale, size=(T, K))
+        R = noise_scale * 2
     else:
         noise = np.random.exponential(noise_scale, size=(T, K)) - noise_scale
+        R = -np.log(0.001) * noise_scale
     ys = truth + noise
 
     """ Run experiment """
@@ -97,6 +99,8 @@ for s in range(num_sims):
         propscore=aw_stats(scores, wts_propscore, truth),
         lvdl=aw_stats(scores, wts_lvdl, truth),
         two_point=aw_stats(scores, wts_twopoint, truth),
+        population_bernstein=population_bernstein_stats(rewards, arms, truth, K),
+        empirical_bernstein=empirical_bernstein_stats(rewards, arms, truth, K, R),
     )
 
     # add estimates of W_decorrelation

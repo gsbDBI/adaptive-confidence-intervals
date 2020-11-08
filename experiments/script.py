@@ -3,7 +3,7 @@ This script runs simulations reported in our paper Confidence Intervals for Poli
 """
 
 import sys
-sys.path.insert(0, "/home/rhzhan/adaptive-confidence-intervals/")
+# sys.path.insert(0, "/home/rhzhan/adaptive-confidence-intervals/")
 from time import time
 from sys import argv
 from random import choice
@@ -19,20 +19,11 @@ from adaptive_CI.weights import twopoint_stable_var_ratio
 
 # ----------------------------------------------------
 # Read DGP specification
-try:
-    experiment = argv[1]
-except IndexError:
-    experiment = 'nosignal'
+noise_func = 'uniform'
 
-try:
-    truth = np.array([float(a) for a in argv[2].split(',')])
-except IndexError:
-    truth = np.array([0.0, 0.0, 0.0])
 
-try:
-    noise_func = argv[3]
-except IndexError:
-    noise_func = 'uniform'
+experiment = choice(['nosignal', 'lowsignal', 'highsignal'])
+truth = np.array([0.0, 0.0, 0.0])
 
 results_list = []
 start_time = time()
@@ -78,10 +69,7 @@ for s in range(num_sims):
 
     """ Compute weights """
     # Two-point allocation rate
-    twopoint_ratio = twopoint_stable_var_ratio(
-        probs,
-        floor_start=floor_start,
-        floor_decay=floor_decay)
+    twopoint_ratio = twopoint_stable_var_ratio(e=probs, alpha=floor_decay)
     twopoint_h2es = stick_breaking(twopoint_ratio)
     wts_twopoint = np.sqrt(np.maximum(0., twopoint_h2es * probs))
 
@@ -99,12 +87,12 @@ for s in range(num_sims):
         two_point=aw_stats(scores, wts_twopoint, truth),
     )
 
-    # add estimates of W_decorrelation
-    W_names = f'W_lambdas_{experiment}-{noise_func}-{T}.npz'
-    W_save = np.load(W_names)  # load presaved W-lambdas
-    for percentile, W_lambda in zip(W_save['percentiles'], W_save['W_lambdas']):
-        stats[f'W-decorrelation_{percentile}'] = wdecorr_stats(
-            arms, rewards, K, W_lambda, truth)
+    # # add estimates of W_decorrelation
+    # W_names = f'W_lambdas_{experiment}-{noise_func}-{T}.npz'
+    # W_save = np.load(W_names)  # load presaved W-lambdas
+    # for percentile, W_lambda in zip(W_save['percentiles'], W_save['W_lambdas']):
+    #     stats[f'W-decorrelation_{percentile}'] = wdecorr_stats(
+    #         arms, rewards, K, W_lambda, truth)
 
     """ Estimate contrasts """
     contrasts = dict(

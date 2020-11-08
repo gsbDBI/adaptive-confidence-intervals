@@ -14,5 +14,5 @@ This directory contains scripts to run experiments and make plots shown in the p
 For instance, to run experiments with configuration `experiment_name=nosignal`, `arm values=[1.0, 1.0, 1.0]` and `noise_shape=uniform`, do the following:
 ```bash
 python compute_W_decorrelation_lambda.py nosignal 1.0,1.0,1.0 uniform
-python scripy.py nosignal 1.0,1.0,1.0 uniform
+python script.py nosignal 1.0,1.0,1.0 uniform
 ```

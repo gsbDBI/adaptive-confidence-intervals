@@ -105,7 +105,7 @@ def save_data_timepoints(data, timepoints, method, K):
     })
 
 
-def generate_dataframes(name):
+def generate_dataframes(name, redo=True):
     """
     Generate dataframes from saved raw results by _script.py_.
 
@@ -116,7 +116,7 @@ def generate_dataframes(name):
     """
 
     # Check if raw results have been preprocessed and saved before.
-    if os.path.exists(f'results/{name}_stats.csv'):
+    if os.path.exists(f'results/{name}_stats.csv') and not redo:
         return read_dataframes(name)
 
     # Read raw results
@@ -246,7 +246,7 @@ def generate_dataframes(name):
 
 
 def plot_converged_statistics(df, row_order=['mse', 'bias'],
-                              col_order=[2, 0],
+                              col_order=[0, 2],
                               hue='method',
                               hue_order=['uniform', 'propscore', 'lvdl',
                                          'two_point'], noise_func='uniform', name=None):
@@ -256,7 +256,8 @@ def plot_converged_statistics(df, row_order=['mse', 'bias'],
     palette = sns.color_palette("muted")[:len(hue_order)]
 
     order = [f'nosignal_{noise_func}',
-             f'lowSNR_{noise_func}', f'highSNR_{noise_func}']
+             f'lowSNR_{noise_func}',
+             f'highSNR_{noise_func}']
     order_name = ['NO SIGNAL', 'LOW SNR', 'HIGH SNR']
     g = sns.catplot(x="dgp",
                     y="value",
@@ -310,7 +311,7 @@ def plot_converged_statistics(df, row_order=['mse', 'bias'],
 
     # Add row and column names
     g.row_names = ['RMSE', 'bias']
-    g.col_names = ['BAD ARM', 'GOOD ARM']
+    g.col_names = ['GOOD ARM', 'BAD ARM']
 
     for ax in g.axes.flat:
         plt.setp(ax.texts, text="")
@@ -436,6 +437,7 @@ def plot_contrast(df, row_order=['nosignal_uniform', 'highSNR_uniform'],
     """
     Plot RMSE, bias and 90% coverage of t-statisitcs in cases of no-signal and high-SNR across different weighting schemes.
     """
+    print("n")
     palette = sns.color_palette("muted")[:len(hue_order)]
     g = sns.catplot(x="T",
                     y="value",
@@ -464,7 +466,7 @@ def plot_contrast(df, row_order=['nosignal_uniform', 'highSNR_uniform'],
                   ax=g.axes[0, 0],
                   data=df.query(f"statistic=='mse' & dgp=='{row_order[0]}'"),
                   estimator=lambda x: np.sqrt(np.mean(x)),
-                  )
+                  markers="")
     g.axes[0, 0].get_legend().remove()
     g.axes[0, 0].set_xlabel("")
     g.axes[0, 0].set_ylabel("")
@@ -479,6 +481,7 @@ def plot_contrast(df, row_order=['nosignal_uniform', 'highSNR_uniform'],
                   ax=g.axes[1, 0],
                   data=df.query(f"statistic=='mse' & dgp=='{row_order[1]}'"),
                   estimator=lambda x: np.sqrt(np.mean(x)),
+                  markers="",
                   )
     g.axes[1, 0].get_legend().remove()
 

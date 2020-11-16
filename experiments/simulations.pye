@@ -31,8 +31,8 @@ from os import makedirs, chmod
 from getpass import getuser
 
 
-# magics removed
-# magics removed
+get_ipython().run_line_magic('reload_ext', 'autoreload')
+get_ipython().run_line_magic('autoreload', '2')
 
 
 # In[2]:

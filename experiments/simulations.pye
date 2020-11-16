@@ -83,7 +83,7 @@ dfs = []
 
 
 # ----------------------------------------------------
-num_sims = 10 if on_sherlock() else 5
+num_sims = 50 if on_sherlock() else 5
 
 # Read DGP specification
 noise_func = 'uniform'
@@ -104,7 +104,7 @@ for s in range(num_sims):
         print(f'Running simulation {s+1}/{num_sims}')
 
     """ Experiment configuration """
-    T = choice([50000, 100_000])  # number of samples
+    T = choice([1000, 5000, 10000, 50000, 100_000])  # number of samples
     experiment = choice(list(truths.keys()))
     truth = truths[experiment]
     K = len(truth)  # number of arms
@@ -269,7 +269,7 @@ filename = compose_filename(f'weight_experiment_{experiment}_{noise_func}', 'pkl
 
 if on_sherlock():
     write_dir = get_sherlock_dir('adaptive-confidence-intervals', 'simulations', create=True)
-    print("saving at {write_dir}")
+    print(f"saving at {write_dir}")
 else:
      write_dir = join(os.getcwd(), 'results')
 write_path = os.path.join(write_dir, filename)

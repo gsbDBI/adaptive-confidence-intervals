@@ -6,10 +6,10 @@ def twopoint_stable_var_ratio(e, alpha):
     T, K = e.shape
     t = np.arange(1, T + 1)[:, np.newaxis]
 
-    bad_denom  = 1 + T * (t/T)**alpha - t   # used when e small
-    good_denom = 1 + T - t                  # used when e large 
+    bad_lambda  = e / (t**-alpha + T**(1-alpha) - t**(1-alpha))  # used when e small
+    good_lambda = 1 / (1 + T - t)                                       # used when e large 
 
-    lamb = (1 - e) * 1 / bad_denom + e * e / good_denom
+    lamb = (1 - e) * bad_lambda + e * good_lambda
     
     assert np.all(lamb >= 0)
     assert np.all(lamb <= 1)

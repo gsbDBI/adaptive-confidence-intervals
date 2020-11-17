@@ -5,20 +5,19 @@ import numpy as np
 def twopoint_stable_var_ratio(e, alpha):
     T, K = e.shape
     t = np.arange(1, T + 1)[:, np.newaxis]
-    C = 1 / K
     
     # bad arm, e small
-    bad_lambda = (1-alpha) / (1 - alpha + T*(t/T)**alpha - t)
+    bad_lambda = (1 - alpha) / ((1 - alpha) + T*(t/T)**alpha - t)
 
     # good arm, e large 
     good_lambda = 1 / (1 + T - t)                        
 
-    assert np.all(bad_lambda + 1e-7 >= good_lambda)  
+    assert np.all(bad_lambda + 1e-7 >= good_lambda) # the 1e-7 is for numerical issues
         
     # weighted average of both
     lamb = (1 - e) * bad_lambda + e * good_lambda
         
-    # Sometimes, due to numerical issues the lambdas are very slightly above 1.
+    # Sometimes, due to numerical issues the lambdas end up very slightly above 1.
     # This clipping ensures that everyting is okay.
     assert np.all(lamb >= 0)
     assert np.all(lamb <= 1 + 1e-8)

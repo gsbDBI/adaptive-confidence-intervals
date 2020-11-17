@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[57]:
+# In[73]:
 
 
 """
@@ -35,7 +35,7 @@ get_ipython().run_line_magic('reload_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')
 
 
-# In[58]:
+# In[74]:
 
 
 def on_sherlock():
@@ -73,17 +73,17 @@ def get_sherlock_dir(project, *tail, create=True):
     return path
 
 
-# In[59]:
+# In[75]:
 
 
 dfs = []
 
 
-# In[70]:
+# In[76]:
 
 
 # ----------------------------------------------------
-num_sims = 50 if on_sherlock() else 5
+num_sims = 50 if on_sherlock() else 1
 
 # Read DGP specification
 noise_func = 'uniform'
@@ -260,7 +260,7 @@ for s in range(num_sims):
     dfs.append(df)
 
 
-# In[71]:
+# In[77]:
 
 
 df = pd.concat(dfs)

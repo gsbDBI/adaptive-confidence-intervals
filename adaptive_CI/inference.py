@@ -101,7 +101,7 @@ def aw_stats(score, evalwts, truth, alpha=0.10):
         - truth: true arm values of shape [K]
 
     OUTPUT:
-        - statistics of arm estimates: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_width, truth]
+        - statistics of arm estimates: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
 
     output: dim (len(stats), K)
     """
@@ -112,8 +112,8 @@ def aw_stats(score, evalwts, truth, alpha=0.10):
     quantile = norm.ppf(1.0 - alpha / 2)
     cover = (np.abs(tstat) < quantile).astype(np.float_)
     error = bias ** 2
-    ci_w = quantile * stderr * 2
-    return np.stack((estimate, stderr, bias, cover, tstat, error, ci_w, truth))
+    ci_r = quantile * stderr
+    return np.stack((estimate, stderr, bias, cover, tstat, error, ci_r, truth))
 
 
 def aw_contrast_stderr(score, evalwts, estimate):
@@ -149,7 +149,7 @@ def aw_contrasts(score, evalwts, truth, alpha=0.10):
         - truth: true arm values of shape [K]
 
     OUTPUT:
-        - statistics of arm contrasts: [truth, estimate, bias, MSE, stderr, t-statistic, (1-alpha)-coverage, confidence_interval_width]
+        - statistics of arm contrasts: [truth, estimate, bias, MSE, stderr, t-statistic, (1-alpha)-coverage, confidence_interval_radius]
     """
     estimate = aw_estimate(score, evalwts)
     contrast_estimate = estimate[0] - estimate[1:]
@@ -162,10 +162,10 @@ def aw_contrasts(score, evalwts, truth, alpha=0.10):
         contrast_estimate, contrast_stderr, contrast_truth)
     quantile = norm.ppf(1 - alpha / 2)
     contrast_cover = (np.abs(contrast_tstat) < quantile).astype(np.float_)
-    ci_w = quantile * contrast_stderr * 2
+    ci_r = quantile * contrast_stderr 
 
     return np.stack((contrast_truth, contrast_estimate,  contrast_bias, contrast_mse,
-                     contrast_stderr,  contrast_tstat, contrast_cover, ci_w))
+                     contrast_stderr,  contrast_tstat, contrast_cover, ci_r))
 
 
 def naive_stats(rewards, arms, truth, K, weights=None, alpha=0.10):
@@ -180,7 +180,7 @@ def naive_stats(rewards, arms, truth, K, weights=None, alpha=0.10):
         - weights: weights applied to samples of shape [K]
 
     OUTPUT:
-        - sample mean statistics of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_width, truth]
+        - sample mean statistics of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
     """
     T = len(rewards)
     if weights is None:
@@ -196,8 +196,8 @@ def naive_stats(rewards, arms, truth, K, weights=None, alpha=0.10):
     error = bias ** 2
     quantile = norm.ppf(1 - alpha / 2)
     cover = (np.abs(tstat) < quantile).astype(np.float_)
-    ci_w = quantile * stderr * 2
-    out = np.stack((estimate, stderr, bias, cover, tstat, error, ci_w, truth))
+    ci_r = quantile * stderr
+    out = np.stack((estimate, stderr, bias, cover, tstat, error, ci_r, truth))
     return out
 
 
@@ -213,7 +213,7 @@ def population_bernstein_stats(rewards, arms, truth, K, alpha=0.10):
         - K: number of arms
 
     OUTPUT:
-        - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_width, truth]
+        - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
     """
     T = len(rewards)
     W = expand(np.ones(T), arms, K)
@@ -223,14 +223,15 @@ def population_bernstein_stats(rewards, arms, truth, K, alpha=0.10):
     
     M = np.max(np.abs(Y - estimate) * W, axis=0) / np.maximum(1, Tw)
     v = np.sum(W * (Y - estimate) ** 2, axis=0) / np.maximum(1, Tw) ** 2
-    ci_radius = 1/3 * np.log(2/alpha) * M + np.sqrt(1/9 * np.log(1/alpha)**2 * M ** 2 + 2 * v * np.log(2/alpha))
+    ci_radius = 1/3 * np.log(2/alpha) * M + np.sqrt(1/9 * np.log(2/alpha)**2 * M ** 2 + 2 * v * np.log(2/alpha))
 
     bias = estimate - truth
     cover = (np.abs(bias) < ci_radius).astype(np.float_)
 
     error = bias ** 2
     stderr = np.sqrt(np.sum(W ** 2 * (Y - estimate) ** 2, axis = 0)) / np.maximum(1, Tw)
-    out = np.stack((estimate, stderr, bias, cover, [None] * K, error, ci_radius * 2, truth))
+    tstat = estimate / stderr # Note this is the usual, vanilla t-statistic
+    out = np.stack((estimate, stderr, bias, cover, [None] * K, error, ci_radius, truth))
     return out
 
     
@@ -286,7 +287,7 @@ def empirical_bernstein_stats(rewards, arms, truth, K, R, alpha=0.10):
         - K: number of arms
 
     OUTPUT:
-        - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_width, truth]
+        - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
     """
     T = len(rewards)
     W = expand(np.ones(T), arms, K)
@@ -305,7 +306,7 @@ def empirical_bernstein_stats(rewards, arms, truth, K, R, alpha=0.10):
     cover = (np.abs(bias) < ci_r).astype(np.float_)
 
     out = np.stack((estimate, stderr, bias, cover,
-                    [None] * K, error, ci_r * 2, truth))
+                    [None] * K, error, ci_r, truth))
     return out
 
 
@@ -323,7 +324,7 @@ def wdecorr_stats(arms, rewards, K, W_lambdas, truth, alpha=0.10):
         - truth: true arm values of shape [K]
 
     OUTPUT:
-        - W-decorrelation statistics of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_width, truth]
+        - W-decorrelation statistics of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
     """
     T = len(arms)
 
@@ -365,9 +366,9 @@ def wdecorr_stats(arms, rewards, K, W_lambdas, truth, alpha=0.10):
     tstat[stderr == 0] = np.nan
     quantile = norm.ppf(1 - alpha / 2)
     cover = (np.abs(tstat) < quantile).astype(np.float_)
-    ci_w = quantile * stderr * 2
+    ci_r = quantile * stderr
     error = bias ** 2
-    return np.stack((estimate, stderr, bias, cover, tstat, error, ci_w, truth))
+    return np.stack((estimate, stderr, bias, cover, tstat, error, ci_r, truth))
 
 
 def sample_mean(rewards, arms, K):

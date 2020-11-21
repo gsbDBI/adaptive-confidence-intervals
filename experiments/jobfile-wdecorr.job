@@ -1,0 +1,11 @@
+#!/bin/bash
+#SBATCH --job-name=wdecorr
+#SBATCH --ntasks=1
+#SBATCH --time=10:00:00
+#SBATCH --mem-per-cpu=4GB
+
+source activate adaptive
+cd ~/adaptive-confidence-intervals/experiments/
+
+python compute_wdecorrelation_lambda.py
+

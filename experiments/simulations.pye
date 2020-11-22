@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[73]:
+# In[43]:
 
 
 """
@@ -35,7 +35,13 @@ get_ipython().run_line_magic('reload_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')
 
 
-# In[74]:
+# In[44]:
+
+
+start_time = time()
+
+
+# In[49]:
 
 
 def on_sherlock():
@@ -73,46 +79,49 @@ def get_sherlock_dir(project, *tail, create=True):
     return path
 
 
-# In[75]:
+# In[54]:
 
 
-dfs = []
+num_sims = 50 if on_sherlock() else 5
 
 
-# In[76]:
-
-
+# DGP specification
 # ----------------------------------------------------
-num_sims = 50 if on_sherlock() else 1
-
-# Read DGP specification
 noise_func = 'uniform'
 truths = {
     'nosignal': np.array([1., 1., 1.]),
     'lowSNR': np.array([.9, 1., 1.1]),
     'highSNR': np.array([.5, 1., 1.5])
 }
+Ts = [1_000, 5_000, 10_000, 50_000, 100_000]
+floor_decays = [.25, .5, .6, .7, .8, .9, .99]
+initial = 5  # initial number of samples of each arm to do pure exploration
+exploration = 'TS'
+noise_scale = 1.0
 
-results_list = []
-start_time = time()
+
+# In[55]:
 
 
-# ----------------------------------------------------
+df_stats = []
+df_lambdas = []
+
+
+# In[56]:
+
+
 # Run simulations
 for s in range(num_sims):
     if (s+1) % 10 == 0:
         print(f'Running simulation {s+1}/{num_sims}')
 
     """ Experiment configuration """
-    T = choice([1000, 5000, 10000, 50000, 100_000])  # number of samples
+    T = choice(Ts)  # number of samples
     experiment = choice(list(truths.keys()))
     truth = truths[experiment]
     K = len(truth)  # number of arms
-    initial = 5  # initial number of samples of each arm to do pure exploration
     floor_start = 1/K
-    floor_decay = choice([.25, .5, .6, .7, .8, .9, .99])
-    exploration = 'TS'
-    noise_scale = 1.0
+    floor_decay = choice(floor_decays)
 
     """ Generate data """
     if noise_func == 'uniform':
@@ -162,16 +171,19 @@ for s in range(num_sims):
         two_point=aw_stats(scores, wts_twopoint, truth),
         two_point_old=aw_stats(scores, wts_twopoint_old, truth),
         bernstein=population_bernstein_stats(rewards, arms, truth, K),
-        #empirical_bernstein=empirical_bernstein_stats(rewards, arms, truth, K, R),
     )
-
+    
     # # add estimates of W_decorrelation
-    # W_names = f'W_lambdas_{experiment}-{noise_func}-{T}.npz'
-    # W_save = np.load(W_names)  # load presaved W-lambdas
-    # for percentile, W_lambda in zip(W_save['percentiles'], W_save['W_lambdas']):
-    #     stats[f'W-decorrelation_{percentile}'] = wdecorr_stats(
-    #         arms, rewards, K, W_lambda, truth)
-
+    W_name = f'wdecorr_results/W_lambdas_{experiment}-{noise_func}-{T}-{floor_decay}.npz'
+    try:
+        W_save = np.load(W_name)  # load presaved W-lambdas
+        for percentile, W_lambda in zip(W_save['percentiles'], W_save['W_lambdas']):
+            stats[f'W-decorrelation_{percentile}'] = wdecorr_stats(arms, rewards, K, W_lambda, truth)
+        print("cool")
+    except FileNotFoundError:
+        print(f'Could not find relevant w-decorrelation file {W_name}')
+        
+    
     """ Estimate contrasts """
     contrasts = dict(
         uniform=aw_contrasts(scores, wts_uniform, truth),
@@ -181,20 +193,10 @@ for s in range(num_sims):
         two_point_old=aw_contrasts(scores, wts_twopoint_old, truth),
         bernstein=population_bernstein_contrast(rewards, arms, truth, K)
     )
+    
+    
 
     """ Save results """
-    weights = dict(
-        uniform=wts_uniform,
-        propscore=wts_propscore,
-        lvdl=wts_lvdl,
-        two_point=wts_twopoint,
-    )
-
-    ratios = dict(
-        lvdl=np.ones((T, K)) / np.arange(T, 0, -1)[:, np.newaxis],
-        two_point=twopoint_ratio,
-    )
-
     config = dict(
         T=T,
         K=K,
@@ -206,76 +208,84 @@ for s in range(num_sims):
         dgp=experiment,
     )
 
-#     # only save at saved_timepoints for assigmnment probabilities, conditional variance, weights, ratios(lambdas)
-#     saved_timepoints = list(range(0, T, T//100))
-#     condVars = dict()
-#     for method, weight in weights.items():
-#         condVar = weight ** 2 / probs / np.sum(weight, 0) ** 2 * T
-#         weight = weight / np.sum(weight, 0) * T
-#         condVars[method] = condVar[saved_timepoints, :]
-#         weights[method] = weight[saved_timepoints, :]
-#     for ratio in ratios:
-#         ratios[ratio] = ratios[ratio][saved_timepoints, :]
-#     probs = probs[saved_timepoints, :]
-
-    results = dict(
-        config=config,
-        probs=probs,
-        stats=stats,
-        contrasts=contrasts,
-        weights=weights,
-#         ratios=ratios,
-#         condVars=condVars
+    ratios = dict(
+        lvdl=np.ones((T, K)) / np.arange(T, 0, -1)[:, np.newaxis],
+        two_point=twopoint_ratio,
     )
     
-    r = results
-    timepoints = np.arange(0, T, T//100)
+    # save lambda values at selected timepoints
+    saved_timepoints = list(range(0, T, T // 250)) + [T-1]
+    for ratio in ratios:
+        ratios[ratio] = ratios[ratio][saved_timepoints, :]
 
     # get statistics table
     tabs_stats = []
-    for method, stat in r['stats'].items():
+    for method, stat in stats.items():
         stat = np.row_stack([stat, np.abs(stat[2])])
         tab_stats = pd.DataFrame({"statistic": ["estimate", "stderr", "bias", "90% coverage of t-stat", "t-stat", "mse", "CI_width", "truth", 'abserr'] * stat.shape[1],
                                   "policy": np.repeat(np.arange(K), stat.shape[0]),
                                   "value":  stat.flatten(order='F'),
                                   "method": method,
-                                 **r['config']})
+                                 **config})
         tabs_stats.append(tab_stats)
 
 
     # get contrast table
     tabs_contrasts = []
-    for method, contrast in r['contrasts'].items():
+    for method, contrast in contrasts.items():
         tabs_contrast = pd.DataFrame({"statistic": ["truth",
                                                     "estimate", "bias", "mse",
                                                     "stderr", "t-stat", "90% coverage of t-stat", "CI_width"] * contrast.shape[1],
                                       "policy": np.repeat([f"(0,{k})" for k in np.arange(1, K)], contrast.shape[0]),
                                       "value": contrast.flatten(order='F'),
                                       "method": method,
-                                     **r['config']})
+                                     **config})
         tabs_contrasts.append(tabs_contrast)
 
-    df = pd.concat(tabs_stats + tabs_contrasts)
     
-    dfs.append(df)
+    df_stats.extend(tabs_stats)
+    df_stats.extend(tabs_contrasts)
+    
+    
+    """ Save relevant lambda weights, if applicable """
+    if T == max(Ts):
+        saved_timepoints = list(range(0, T, T // 500))
+        lambdas = twopoint_ratio[saved_timepoints] * (T - np.array(saved_timepoints)[:,np.newaxis])
+        lambdas = {key: value for key, value in enumerate(lambdas.T)}
+        dfl = pd.DataFrame({**lambdas, **config, 'time': saved_timepoints})
+        dfl = pd.melt(dfl, id_vars=list(config.keys()) + ['time'], var_name='policy', value_vars=list(range(K)))
+        df_lambdas.append(dfl)
+        
+    print(f"Time passed {time()-start_time}s")
 
 
-# In[77]:
+# In[53]:
 
 
-df = pd.concat(dfs)
+df_stats = pd.concat(df_stats)
+if len(df_lambdas) > 0:
+    df_lambdas = pd.concat(df_lambdas)
 
-filename = compose_filename(f'weight_experiment_{experiment}_{noise_func}', 'pkl')
+
+# In[42]:
+
+
+
+filename1 = compose_filename(f'stats', 'pkl')
+filename2 = compose_filename(f'lambdas', 'pkl')
+
 
 if on_sherlock():
     write_dir = get_sherlock_dir('adaptive-confidence-intervals', 'simulations', create=True)
     print(f"saving at {write_dir}")
 else:
      write_dir = join(os.getcwd(), 'results')
-write_path = os.path.join(write_dir, filename)
-df.to_pickle(write_path)
-    
-print(f"Time passed {time()-start_time}s")
+write_path1 = os.path.join(write_dir, filename1)
+write_path2 = os.path.join(write_dir, filename2)
+
+df_stats.to_pickle(write_path1)
+if len(df_lambdas) > 0:
+    df_lambdas.to_pickle(write_path2)
 
 
 # In[ ]:

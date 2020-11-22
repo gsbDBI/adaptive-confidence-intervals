@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[43]:
 
 
 """
@@ -35,13 +35,13 @@ from getpass import getuser
 # magics removed
 
 
-# In[2]:
+# In[44]:
 
 
 start_time = time()
 
 
-# In[15]:
+# In[49]:
 
 
 def on_sherlock():
@@ -79,7 +79,7 @@ def get_sherlock_dir(project, *tail, create=True):
     return path
 
 
-# In[16]:
+# In[54]:
 
 
 num_sims = 50 if on_sherlock() else 5
@@ -93,21 +93,21 @@ truths = {
     'lowSNR': np.array([.9, 1., 1.1]),
     'highSNR': np.array([.5, 1., 1.5])
 }
-Ts = [1000] #[1_000, 5_000, 10_000, 50_000, 100_000]
+Ts = [1_000, 5_000, 10_000, 50_000, 100_000]
 floor_decays = [.25, .5, .6, .7, .8, .9, .99]
 initial = 5  # initial number of samples of each arm to do pure exploration
 exploration = 'TS'
 noise_scale = 1.0
 
 
-# In[31]:
+# In[55]:
 
 
 df_stats = []
 df_lambdas = []
 
 
-# In[32]:
+# In[56]:
 
 
 # Run simulations
@@ -179,6 +179,7 @@ for s in range(num_sims):
         W_save = np.load(W_name)  # load presaved W-lambdas
         for percentile, W_lambda in zip(W_save['percentiles'], W_save['W_lambdas']):
             stats[f'W-decorrelation_{percentile}'] = wdecorr_stats(arms, rewards, K, W_lambda, truth)
+        print("cool")
     except FileNotFoundError:
         print(f'Could not find relevant w-decorrelation file {W_name}')
         
@@ -258,7 +259,7 @@ for s in range(num_sims):
     print(f"Time passed {time()-start_time}s")
 
 
-# In[33]:
+# In[53]:
 
 
 df_stats = pd.concat(df_stats)
@@ -266,7 +267,7 @@ if len(df_lambdas) > 0:
     df_lambdas = pd.concat(df_lambdas)
 
 
-# In[34]:
+# In[42]:
 
 
 

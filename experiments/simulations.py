@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[40]:
+# In[48]:
 
 
 """
@@ -35,13 +35,13 @@ from getpass import getuser
 # magics removed
 
 
-# In[41]:
+# In[49]:
 
 
 start_time = time()
 
 
-# In[42]:
+# In[50]:
 
 
 def on_sherlock():
@@ -79,11 +79,10 @@ def get_sherlock_dir(project, *tail, create=True):
     return path
 
 
-# In[43]:
+# In[51]:
 
 
 num_sims = 200 if on_sherlock() else 1
-
 
 # DGP specification
 # ----------------------------------------------------
@@ -94,20 +93,20 @@ truths = {
     'highSNR': np.array([.5, 1., 1.5])
 }
 Ts = [1_000, 5_000, 10_000, 50_000, 100_000]
-floor_decays = [0.7]  #[.25, .5, .6, .7, .8, .9, .99]
+floor_decays = [.25, .5, .6, .7, .8, .9, .99]
 initial = 5  # initial number of samples of each arm to do pure exploration
 exploration = 'TS'
 noise_scale = 1.0
 
 
-# In[44]:
+# In[52]:
 
 
 df_stats = []
 df_lambdas = []
 
 
-# In[45]:
+# In[53]:
 
 
 # Run simulations
@@ -179,9 +178,8 @@ for s in range(num_sims):
         W_save = np.load(W_name)  # load presaved W-lambdas
         for percentile, W_lambda in zip(W_save['percentiles'], W_save['W_lambdas']):
             stats[f'W-decorrelation_{percentile}'] = wdecorr_stats(arms, rewards, K, W_lambda, truth)
-        print("cool")
     except FileNotFoundError:
-        print(f'Could not find relevant w-decorrelation file {W_name}')
+        print(f'Could not find relevant w-decorrelation file {W_name}.')
         
     
     """ Estimate contrasts """
@@ -259,7 +257,7 @@ for s in range(num_sims):
     print(f"Time passed {time()-start_time}s")
 
 
-# In[46]:
+# In[54]:
 
 
 df_stats = pd.concat(df_stats)
@@ -268,7 +266,6 @@ if len(df_lambdas) > 0:
 
 
 # In[47]:
-
 
 
 filename1 = compose_filename(f'stats', 'pkl')
@@ -291,5 +288,5 @@ if len(df_lambdas) > 0:
 # In[ ]:
 
 
-
+print("All done.")
 

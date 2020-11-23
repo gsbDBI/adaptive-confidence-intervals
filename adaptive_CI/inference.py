@@ -131,15 +131,20 @@ def aw_contrast_stderr(score, evalwts, estimate):
     h_sum = evalwts.sum(0)
     T, K = np.shape(score)
     diff = score - estimate
-    numerator = h_sum[1:] * evalwts[:, :1] * diff[:, :1] - h_sum[0] * evalwts[:, 1:] * diff[:, 1:]
+    # numerator = h_sum[1:] * evalwts[:, :1] * diff[:, :1] - h_sum[0] * evalwts[:, 1:] * diff[:, 1:]
+    numerator = h_sum[:-1] * evalwts[:, -1:] * diff[:, -1:] - h_sum[-1] * evalwts[:, :-1] * diff[:, :-1]
     numerator = np.sum(numerator ** 2, axis=0)
-    denominator = h_sum[0]**2 * h_sum[1:]**2
+    #denominator = h_sum[0]**2 * h_sum[1:]**2
+    denominator = h_sum[-1]**2 * h_sum[:-1]**2
     return np.sqrt(numerator / denominator)
+    
+    
+    
 
 
 def aw_contrasts(score, evalwts, truth, alpha=0.10):
     """
-    Compute statistics of arm contrast estimations
+    Compute statistics of arm contrast estimations (last arm vs others)
 
     INPUT:
         - score: AIPW scores of shape [T, K]
@@ -150,8 +155,8 @@ def aw_contrasts(score, evalwts, truth, alpha=0.10):
         - statistics of arm contrasts: [truth, estimate, bias, MSE, stderr, t-statistic, (1-alpha)-coverage, confidence_interval_radius]
     """
     estimate = aw_estimate(score, evalwts)
-    contrast_estimate = estimate[0] - estimate[1:]
-    contrast_truth = truth[0] - truth[1:]
+    contrast_estimate = estimate[-1] - estimate[:-1]
+    contrast_truth = truth[-1] - truth[:-1]
     contrast_bias = contrast_estimate - contrast_truth
     contrast_mse = contrast_bias ** 2
 
@@ -241,24 +246,24 @@ def population_bernstein_contrast(rewards, arms, truth, K, alpha=0.10):
     var = np.array([np.var(rewards[arms == w]) for w in range(K)])
 
     # Treatment effect estimate
-    estimate = means[0] - means[1:]
+    estimate = means[-1] - means[:-1]
 
     # Bernstein parameter: variance
-    v = var[0] / Tw[0] + var[1:] / Tw[1:]
+    v = var[-1] / Tw[-1] + var[:-1] / Tw[:-1]
 
     # Bernstein parameter: maximum proxy
     YW_ctr = np.column_stack([(rewards - means[w]) / Tw[w] * (arms == w) for w in range(K)])
-    M = np.max(np.abs(YW_ctr[:, 0:1] - YW_ctr[:, 1:]), 0)   
+    M = np.max(np.abs(YW_ctr[:, -1:] - YW_ctr[:, :-1]), 0)   
     
     # Bernstein confidence interval
     ci_radius = 1/3 * np.log(2/alpha) * M + np.sqrt(1/9 * np.log(2/alpha)**2 * M ** 2 + 2 * v * np.log(2/alpha))
 
     # Other statistics
-    bias = estimate - (truth[0] - truth[1:])
+    bias = estimate - (truth[-1] - truth[:-1])
     cover = (np.abs(bias) < ci_radius).astype(np.float_)
     sqerror = bias ** 2
     stderr = np.sqrt(v)
-    contrast_truth = truth[0] - truth[1:]
+    contrast_truth = truth[-1] - truth[:-1]
     tstat = bias / stderr # note this is not really a t-stat, need to fix names
     
     # Store everything in the same order as aw_contrasts

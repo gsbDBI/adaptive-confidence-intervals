@@ -7,6 +7,9 @@ def twopoint_stable_var_ratio(e, alpha):
     t = np.arange(1, T + 1)[:, np.newaxis]
     
     # bad arm, e small
+    # this rearranging of the formula in the paper seems to be slightly more
+    # numerically accurate. the exact formula in the paper occasionally produces 
+    # weights that are just a little over 1 (which is impossible).
     bad_lambda = (1 - alpha) / ((1 - alpha) + T*(t/T)**alpha - t)
 
     # good arm, e large 

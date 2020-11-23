@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[40]:
 
 
 """
@@ -35,13 +35,13 @@ from getpass import getuser
 # magics removed
 
 
-# In[2]:
+# In[41]:
 
 
 start_time = time()
 
 
-# In[3]:
+# In[42]:
 
 
 def on_sherlock():
@@ -79,10 +79,10 @@ def get_sherlock_dir(project, *tail, create=True):
     return path
 
 
-# In[4]:
+# In[43]:
 
 
-num_sims = 50 if on_sherlock() else 1
+num_sims = 200 if on_sherlock() else 1
 
 
 # DGP specification
@@ -100,14 +100,14 @@ exploration = 'TS'
 noise_scale = 1.0
 
 
-# In[5]:
+# In[44]:
 
 
 df_stats = []
 df_lambdas = []
 
 
-# In[6]:
+# In[45]:
 
 
 # Run simulations
@@ -259,7 +259,7 @@ for s in range(num_sims):
     print(f"Time passed {time()-start_time}s")
 
 
-# In[53]:
+# In[46]:
 
 
 df_stats = pd.concat(df_stats)
@@ -267,7 +267,7 @@ if len(df_lambdas) > 0:
     df_lambdas = pd.concat(df_lambdas)
 
 
-# In[42]:
+# In[47]:
 
 
 

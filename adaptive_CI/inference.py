@@ -17,7 +17,6 @@ __all__ = [
     "naive_stats",
     "sample_mean",
     "population_bernstein_stats",
-    "empirical_bernstein_stats",
     "population_bernstein_contrast"
 ]
 
@@ -132,8 +131,7 @@ def aw_contrast_stderr(score, evalwts, estimate):
     h_sum = evalwts.sum(0)
     T, K = np.shape(score)
     diff = score - estimate
-    numerator = h_sum[1:] * evalwts[:, :1] * diff[:, :1] - \
-        h_sum[0] * evalwts[:, 1:] * diff[:, 1:]
+    numerator = h_sum[1:] * evalwts[:, :1] * diff[:, :1] - h_sum[0] * evalwts[:, 1:] * diff[:, 1:]
     numerator = np.sum(numerator ** 2, axis=0)
     denominator = h_sum[0]**2 * h_sum[1:]**2
     return np.sqrt(numerator / denominator)
@@ -230,8 +228,8 @@ def population_bernstein_stats(rewards, arms, truth, K, alpha=0.10):
 
     error = bias ** 2
     stderr = np.sqrt(np.sum(W ** 2 * (Y - estimate) ** 2, axis = 0)) / np.maximum(1, Tw)
-    tstat = estimate / stderr # Note this is the usual, vanilla t-statistic
-    out = np.stack((estimate, stderr, bias, cover, [None] * K, error, ci_radius, truth))
+    tstat = bias / stderr  # Note this is not a t-stat, need to fix names
+    out = np.stack((estimate, stderr, bias, cover, tstat, error, ci_radius, truth))
     return out
 
     
@@ -243,7 +241,7 @@ def population_bernstein_contrast(rewards, arms, truth, K, alpha=0.10):
     var = np.array([np.var(rewards[arms == w]) for w in range(K)])
 
     # Treatment effect estimate
-    estimate = means[1:] - means[0]
+    estimate = means[0] - means[1:]
 
     # Bernstein parameter: variance
     v = var[0] / Tw[0] + var[1:] / Tw[1:]
@@ -253,14 +251,15 @@ def population_bernstein_contrast(rewards, arms, truth, K, alpha=0.10):
     M = np.max(np.abs(YW_ctr[:, 0:1] - YW_ctr[:, 1:]), 0)   
     
     # Bernstein confidence interval
-    ci_radius = 1/3 * np.log(2/alpha) * M + np.sqrt(1/9 * np.log(1/alpha)**2 * M ** 2 + 2 * v * np.log(2/alpha))
+    ci_radius = 1/3 * np.log(2/alpha) * M + np.sqrt(1/9 * np.log(2/alpha)**2 * M ** 2 + 2 * v * np.log(2/alpha))
 
     # Other statistics
-    bias = estimate - (truth[1:] - truth[0])
+    bias = estimate - (truth[0] - truth[1:])
     cover = (np.abs(bias) < ci_radius).astype(np.float_)
     sqerror = bias ** 2
     stderr = np.sqrt(v)
-    contrast_truth = truth[1:] - truth[0]
+    contrast_truth = truth[0] - truth[1:]
+    tstat = bias / stderr # note this is not really a t-stat, need to fix names
     
     # Store everything in the same order as aw_contrasts
     out = np.stack([
@@ -269,44 +268,10 @@ def population_bernstein_contrast(rewards, arms, truth, K, alpha=0.10):
         bias,
         sqerror,
         stderr,
-        [np.nan] * (K - 1),
+        tstat,
         cover,
-        2 * ci_radius,
+        ci_radius,
     ])
-    return out
-
-
-def empirical_bernstein_stats(rewards, arms, truth, K, R, alpha=0.10):
-    """
-    Compute the empirical bernstein confidence interval, by Audibert et al. [2007], Mnih et al. [2008], Maurer and Pontil [2009]. 
-
-    INPUT:
-        - rewards: observed rewards of shape [T]
-        - arms: pulled arms of shape [T]
-        - truth: true arm values of shape [K]
-        - K: number of arms
-
-    OUTPUT:
-        - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
-    """
-    T = len(rewards)
-    W = expand(np.ones(T), arms, K)
-    Tw = np.sum(W, 0)
-    Y = expand(rewards, arms, K)
-    estimate = np.sum(W * Y, 0) / np.maximum(1, Tw)
-    stderr = np.sqrt(np.sum(W ** 2 * (Y - estimate) ** 2, 0)
-                     ) / np.maximum(1, Tw)
-
-    v = np.sum(W * (Y - estimate) ** 2, axis=0) / np.maximum(1, Tw)
-    empirical_bernstein = np.sqrt(v) * np.sqrt(2 * np.log(3 / alpha) / Tw) + 3 * R * np.log(3 / alpha) / Tw
-    ci_r = empirical_bernstein 
-
-    bias = estimate - truth
-    error = bias ** 2
-    cover = (np.abs(bias) < ci_r).astype(np.float_)
-
-    out = np.stack((estimate, stderr, bias, cover,
-                    [None] * K, error, ci_r, truth))
     return out
 
 

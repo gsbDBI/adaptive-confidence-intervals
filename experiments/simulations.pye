@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[43]:
+# In[1]:
 
 
 """
@@ -35,13 +35,13 @@ get_ipython().run_line_magic('reload_ext', 'autoreload')
 get_ipython().run_line_magic('autoreload', '2')
 
 
-# In[44]:
+# In[2]:
 
 
 start_time = time()
 
 
-# In[49]:
+# In[3]:
 
 
 def on_sherlock():
@@ -79,10 +79,10 @@ def get_sherlock_dir(project, *tail, create=True):
     return path
 
 
-# In[54]:
+# In[4]:
 
 
-num_sims = 50 if on_sherlock() else 5
+num_sims = 50 if on_sherlock() else 1
 
 
 # DGP specification
@@ -94,20 +94,20 @@ truths = {
     'highSNR': np.array([.5, 1., 1.5])
 }
 Ts = [1_000, 5_000, 10_000, 50_000, 100_000]
-floor_decays = [.25, .5, .6, .7, .8, .9, .99]
+floor_decays = [0.7]  #[.25, .5, .6, .7, .8, .9, .99]
 initial = 5  # initial number of samples of each arm to do pure exploration
 exploration = 'TS'
 noise_scale = 1.0
 
 
-# In[55]:
+# In[5]:
 
 
 df_stats = []
 df_lambdas = []
 
 
-# In[56]:
+# In[6]:
 
 
 # Run simulations
@@ -218,7 +218,7 @@ for s in range(num_sims):
     for ratio in ratios:
         ratios[ratio] = ratios[ratio][saved_timepoints, :]
 
-    # get statistics table
+    # tabulate arm values
     tabs_stats = []
     for method, stat in stats.items():
         stat = np.row_stack([stat, np.abs(stat[2])])
@@ -230,7 +230,7 @@ for s in range(num_sims):
         tabs_stats.append(tab_stats)
 
 
-    # get contrast table
+    # tabulate arm contrasts
     tabs_contrasts = []
     for method, contrast in contrasts.items():
         tabs_contrast = pd.DataFrame({"statistic": ["truth",

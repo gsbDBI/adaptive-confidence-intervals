@@ -5,6 +5,7 @@ This script contains helper functions to do inference including computing scores
 import numpy as np
 from scipy.stats import norm
 from adaptive_CI.compute import *
+from adaptive_CI.inequalities import *
 
 __all__ = [
     "aw_scores",
@@ -16,8 +17,8 @@ __all__ = [
     "wdecorr_stats",
     "naive_stats",
     "sample_mean",
-    "population_bernstein_stats",
-    "population_bernstein_contrast"
+    "finite_sample_inequality_stats",
+    "finite_sample_inequality_contrast",
 ]
 
 
@@ -204,7 +205,7 @@ def naive_stats(rewards, arms, truth, K, weights=None, alpha=0.10):
     return out
 
 
-def population_bernstein_stats(rewards, arms, truth, K, alpha=0.10):
+def finite_sample_inequality_stats(rewards, arms, truth, K, inequality, delta=0.10):
     """
     Compute the population bernstein confidence interval, plugging in sample values.
     Reference: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2827893/.
@@ -214,50 +215,73 @@ def population_bernstein_stats(rewards, arms, truth, K, alpha=0.10):
         - arms: pulled arms of shape [T]
         - truth: true arm values of shape [K]
         - K: number of arms
+        - inequality: bernstein, bennett or hoeffding
 
     OUTPUT:
         - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
     """
-    T = len(rewards)
-    W = expand(np.ones(T), arms, K)
-    Tw = np.sum(W, 0)
-    Y = expand(rewards, arms, K)
-    estimate = np.sum(W * Y, 0) / np.maximum(1, Tw)
-    
-    M = np.max(np.abs(Y - estimate) * W, axis=0) / np.maximum(1, Tw)
-    v = np.sum(W * (Y - estimate) ** 2, axis=0) / np.maximum(1, Tw) ** 2
-    ci_radius = 1/3 * np.log(2/alpha) * M + np.sqrt(1/9 * np.log(2/alpha)**2 * M ** 2 + 2 * v * np.log(2/alpha))
-
-    bias = estimate - truth
-    cover = (np.abs(bias) < ci_radius).astype(np.float_)
-
-    error = bias ** 2
-    stderr = np.sqrt(np.sum(W ** 2 * (Y - estimate) ** 2, axis = 0)) / np.maximum(1, Tw)
-    tstat = bias / stderr  # Note this is not a t-stat, need to fix names
-    out = np.stack((estimate, stderr, bias, cover, tstat, error, ci_radius, truth))
-    return out
-
-    
-
-def population_bernstein_contrast(rewards, arms, truth, K, alpha=0.10):
-    # Means and variances of rewards for each arm
     Tw = np.maximum([np.sum(arms == w) for w in range(K)], 1)
     means = np.array([np.mean(rewards[arms == w]) for w in range(K)])
     var = np.array([np.var(rewards[arms == w]) for w in range(K)])
+    M = np.array([np.max(rewards[arms == w] - means[w]) for w in range(K)])
 
+    if inequality == 'bernstein':
+        ci_radius = get_bernstein_radius(M / Tw, var / Tw, delta)
+    elif inequality == 'bennett':
+        ci_radius = np.array([get_bennett_radius(M[w] / Tw[w], var[w] / Tw[w], delta) for w in range(K)])
+    elif inequality == 'hoeffding':
+        ci_radius = np.array([get_hoeffding_radius(Tw[w], M[w] / Tw[w], var[w] / Tw[w], delta) for w in range(K)])
+    else:
+        raise ValueError(f'Cannot understand inequality type {inequality}')
+        
+    bias = means - truth
+    cover = (np.abs(bias) < ci_radius).astype(np.float_)
+    error = bias ** 2
+    stderr = np.sqrt(var / Tw)
+    tstat = bias / stderr  # Note this is not a t-stat, need to fix names
+    out = np.stack((means, stderr, bias, cover, tstat, error, ci_radius, truth))
+    return out
+
+
+
+def finite_sample_inequality_contrast(rewards, arms, truth, K, inequality, delta=0.10):
+    """
+    Compute the population bernstein confidence interval, plugging in sample values.
+    Reference: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2827893/.
+
+    INPUT:
+        - rewards: observed rewards of shape [T]
+        - arms: pulled arms of shape [T]
+        - truth: true arm values of shape [K]
+        - K: number of arms
+        - inequality: bernstein, bennett or hoeffding
+
+    OUTPUT:
+        - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
+    """
+    Tw = np.maximum([np.sum(arms == w) for w in range(K)], 1)
+    means = np.array([np.mean(rewards[arms == w]) for w in range(K)])
+    var = np.array([np.var(rewards[arms == w]) for w in range(K)])
+    
     # Treatment effect estimate
     estimate = means[-1] - means[:-1]
-
-    # Bernstein parameter: variance
-    v = var[-1] / Tw[-1] + var[:-1] / Tw[:-1]
-
-    # Bernstein parameter: maximum proxy
-    YW_ctr = np.column_stack([(rewards - means[w]) / Tw[w] * (arms == w) for w in range(K)])
-    M = np.max(np.abs(YW_ctr[:, -1:] - YW_ctr[:, :-1]), 0)   
     
-    # Bernstein confidence interval
-    ci_radius = 1/3 * np.log(2/alpha) * M + np.sqrt(1/9 * np.log(2/alpha)**2 * M ** 2 + 2 * v * np.log(2/alpha))
-
+    # Inequality parameter: maximum proxy
+    YW_ctr = np.column_stack([(rewards - means[w]) / Tw[w] * (arms == w) for w in range(K)])
+    M = np.max(np.abs(YW_ctr[:, -1:] - YW_ctr[:, :-1]), 0) 
+    
+    # Inequality parameter: variance proxy
+    v = var[-1] / Tw[-1] + var[:-1] / Tw[:-1]
+    
+    if inequality == 'bernstein':
+        ci_radius = get_bernstein_radius(M, v, delta)
+    elif inequality == 'bennett':
+        ci_radius = np.array([get_bennett_radius(M[w], v[w], delta) for w in range(K - 1)])
+    elif inequality == 'hoeffding':
+        ci_radius = np.array([get_hoeffding_radius(Tw[w], M[w], v[w], delta) for w in range(K - 1)])
+    else:
+        raise ValueError(f'Cannot understand inequality type {inequality}')
+        
     # Other statistics
     bias = estimate - (truth[-1] - truth[:-1])
     cover = (np.abs(bias) < ci_radius).astype(np.float_)
@@ -278,7 +302,7 @@ def population_bernstein_contrast(rewards, arms, truth, K, alpha=0.10):
         ci_radius,
     ])
     return out
-
+    
 
 def wdecorr_stats(arms, rewards, K, W_lambdas, truth, alpha=0.10):
     """

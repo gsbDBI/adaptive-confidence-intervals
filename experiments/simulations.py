@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[48]:
+# In[1]:
 
 
 """
@@ -35,13 +35,13 @@ from getpass import getuser
 # magics removed
 
 
-# In[49]:
+# In[2]:
 
 
 start_time = time()
 
 
-# In[50]:
+# In[3]:
 
 
 def on_sherlock():
@@ -79,7 +79,7 @@ def get_sherlock_dir(project, *tail, create=True):
     return path
 
 
-# In[51]:
+# In[4]:
 
 
 num_sims = 200 if on_sherlock() else 1
@@ -99,14 +99,14 @@ exploration = 'TS'
 noise_scale = 1.0
 
 
-# In[52]:
+# In[5]:
 
 
 df_stats = []
 df_lambdas = []
 
 
-# In[53]:
+# In[10]:
 
 
 # Run simulations
@@ -154,7 +154,6 @@ for s in range(num_sims):
     twopoint_h2es = stick_breaking(twopoint_ratio)
     twopoint_h2es_old = stick_breaking(twopoint_ratio_old)
     wts_twopoint = np.sqrt(np.maximum(0., twopoint_h2es * probs))
-    wts_twopoint_old = np.sqrt(np.maximum(0., twopoint_h2es_old * probs))
 
     # Other weights: lvdl(constant allocation rate), propscore and uniform
     wts_lvdl = np.sqrt(probs)
@@ -162,14 +161,15 @@ for s in range(num_sims):
     wts_uniform = np.ones_like(probs)
 
     """ Estimate arm values """
-    # for each weighting scheme, return [estimate, S.E, bias, 95%-coverage, t-stat, mse, truth]
+    # for each weighting scheme, return [estimate, S.E, bias, 90%-coverage, t-stat, mse, truth]
     stats = dict(
         uniform=aw_stats(scores, wts_uniform, truth),
         propscore=aw_stats(scores, wts_propscore, truth),
         lvdl=aw_stats(scores, wts_lvdl, truth),
         two_point=aw_stats(scores, wts_twopoint, truth),
-        two_point_old=aw_stats(scores, wts_twopoint_old, truth),
-        bernstein=population_bernstein_stats(rewards, arms, truth, K),
+        bernstein=finite_sample_inequality_stats(rewards, arms, truth, K, inequality='bernstein'),
+        bennett=finite_sample_inequality_stats(rewards, arms, truth, K, inequality='bennett'),
+        hoeffding=finite_sample_inequality_stats(rewards, arms, truth, K, inequality='hoeffding'),
     )
     
     # # add estimates of W_decorrelation
@@ -188,8 +188,9 @@ for s in range(num_sims):
         propscore=aw_contrasts(scores, wts_propscore, truth),
         lvdl=aw_contrasts(scores, wts_lvdl, truth),
         two_point=aw_contrasts(scores, wts_twopoint, truth),
-        two_point_old=aw_contrasts(scores, wts_twopoint_old, truth),
-        bernstein=population_bernstein_contrast(rewards, arms, truth, K)
+        bernstein=finite_sample_inequality_contrast(rewards, arms, truth, K, inequality='bernstein'),
+        bennett=finite_sample_inequality_contrast(rewards, arms, truth, K, inequality='bennett'),
+        hoeffding=finite_sample_inequality_contrast(rewards, arms, truth, K, inequality='hoeffding'),
     )
     
     
@@ -257,7 +258,7 @@ for s in range(num_sims):
     print(f"Time passed {time()-start_time}s")
 
 
-# In[54]:
+# In[11]:
 
 
 df_stats = pd.concat(df_stats)
@@ -265,7 +266,7 @@ if len(df_lambdas) > 0:
     df_lambdas = pd.concat(df_lambdas)
 
 
-# In[47]:
+# In[12]:
 
 
 filename1 = compose_filename(f'stats', 'pkl')
@@ -285,7 +286,7 @@ if len(df_lambdas) > 0:
     df_lambdas.to_pickle(write_path2)
 
 
-# In[ ]:
+# In[13]:
 
 
 print("All done.")

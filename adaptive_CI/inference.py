@@ -4,6 +4,7 @@ This script contains helper functions to do inference including computing scores
 
 import numpy as np
 from scipy.stats import norm
+from confseq import boundaries
 from adaptive_CI.compute import *
 from adaptive_CI.inequalities import *
 
@@ -17,9 +18,94 @@ __all__ = [
     "wdecorr_stats",
     "naive_stats",
     "sample_mean",
-    "finite_sample_inequality_stats",
-    "finite_sample_inequality_contrast",
+    "beta_bernoulli_stats",
+    "gamma_exponential_stats",
 ]
+
+        
+
+def beta_bernoulli_stats(outcomes, treatments, truth, K, decay_rate, alpha=.1):
+    T = len(outcomes)
+    means = np.empty(K)
+    stderr = np.empty(K)
+    confidence_interval = np.empty((K, 2))
+    coverage = np.empty(K)
+    ci_radius = np.empty(K)
+    
+    for w in range(K):
+        y = outcomes[treatments == w]
+        y_min, y_max = np.min(y), np.max(y)
+        y_normalized = (y - y_min) / (y_max - y_min) # normalizing to [0, 1]
+        t_opt = int((1/K) * np.sum(np.arange(1, T+1)**-decay_rate))
+        num_successes = np.sum(y_normalized)
+        num_trials = np.sum(treatments == w)
+
+        try:
+            ci_normalized = boundaries.bernoulli_confidence_interval(  
+                num_successes=int(num_successes), 
+                num_trials=num_trials, 
+                t_opt=t_opt, 
+                alpha=alpha / 2, 
+                alpha_opt=alpha / 2)
+        except Exception as e:
+            print("Error while computing bernoulli confidence interval.")
+            print("num_successes: ", int(num_successes))
+            print("num_trials", num_trials)
+            print("t_opt", t_opt)
+            print(e)
+            ci_normalized = (np.nan, np.nan)
+                
+        means[w] = np.mean(y)
+        stderr[w] = np.std(y) / np.sqrt(len(y))
+        confidence_interval = np.array(ci_normalized) * (y_max - y_min) + y_min
+        ci_radius[w] = np.diff(confidence_interval) / 2
+        coverage[w] = float(confidence_interval[0] < truth[w] < confidence_interval[1])
+
+    relerror = (means - truth) / stderr
+    relerror[stderr == 0] = np.nan
+    bias = means - truth
+    error = bias ** 2
+    out = np.stack((means, stderr, bias, coverage, relerror, error, ci_radius, truth))
+    return out
+
+
+def gamma_exponential_stats(outcomes, treatments, truth, K, decay_rate, c, expected_noise_variance, alpha=.1):
+    T = len(outcomes)
+    means = np.empty(K)
+    stderr = np.empty(K)
+    confidence_interval = np.empty((K, 2))
+    coverage = np.empty(K)
+    ci_radius = np.empty(K)
+    t_opt = int((1/K) * np.sum(np.arange(1, T+1)**-decay_rate))
+    v_opt = t_opt * expected_noise_variance
+
+    for w in range(K):
+        selector = treatments == w
+        Tw = np.sum(selector)
+        y = outcomes[selector]
+        lagged_means = np.roll(np.cumsum(y) / np.arange(1, Tw + 1), 1)
+        Vt = np.sum((y - lagged_means)**2)
+        ci_radius[w] = (1 / Tw *
+                        boundaries.gamma_exponential_mixture_bound(
+                            v=Vt,
+                            v_opt=v_opt, 
+                            c=c, 
+                            alpha=alpha / 2,
+                            alpha_opt=alpha / 2))
+
+        means[w] = np.mean(y)
+        stderr[w] = np.std(y) / np.sqrt(Tw)
+        confidence_interval = (means[w] - ci_radius[w], means[w] + ci_radius[w])
+        coverage[w] = float(confidence_interval[0] < truth[w] < confidence_interval[1])
+
+    relerror = (means - truth) / stderr
+    relerror[stderr == 0] = np.nan
+    bias = means - truth
+    error = bias ** 2
+    out = np.stack((means, stderr, bias, coverage, relerror, error, ci_radius, truth))
+    return out
+
+
 
 
 def aw_scores(rewards, arms, assignment_probs, muhat=None):
@@ -205,103 +291,7 @@ def naive_stats(rewards, arms, truth, K, weights=None, alpha=0.10):
     return out
 
 
-def finite_sample_inequality_stats(rewards, arms, truth, K, inequality, delta=0.10):
-    """
-    Compute the population bernstein confidence interval, plugging in sample values.
-    Reference: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2827893/.
 
-    INPUT:
-        - rewards: observed rewards of shape [T]
-        - arms: pulled arms of shape [T]
-        - truth: true arm values of shape [K]
-        - K: number of arms
-        - inequality: bernstein, bennett or hoeffding
-
-    OUTPUT:
-        - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
-    """
-    Tw = np.maximum([np.sum(arms == w) for w in range(K)], 1)
-    means = np.array([np.mean(rewards[arms == w]) for w in range(K)])
-    var = np.array([np.var(rewards[arms == w]) for w in range(K)])
-    M = np.array([np.max(rewards[arms == w] - means[w]) for w in range(K)])
-
-    if inequality == 'bernstein':
-        ci_radius = get_bernstein_radius(M / Tw, var / Tw, delta)
-    elif inequality == 'bennett':
-        ci_radius = np.array([get_bennett_radius(M[w] / Tw[w], var[w] / Tw[w], delta) for w in range(K)])
-    elif inequality == 'hoeffding':
-        ci_radius = np.array([get_hoeffding_radius(Tw[w], M[w] / Tw[w], var[w] / Tw[w], delta) for w in range(K)])
-    else:
-        raise ValueError(f'Cannot understand inequality type {inequality}')
-        
-    bias = means - truth
-    cover = (np.abs(bias) < ci_radius).astype(np.float_)
-    error = bias ** 2
-    stderr = np.sqrt(var / Tw)
-    tstat = bias / stderr  # Note this is not a t-stat, need to fix names
-    out = np.stack((means, stderr, bias, cover, tstat, error, ci_radius, truth))
-    return out
-
-
-
-def finite_sample_inequality_contrast(rewards, arms, truth, K, inequality, delta=0.10):
-    """
-    Compute the population bernstein confidence interval, plugging in sample values.
-    Reference: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2827893/.
-
-    INPUT:
-        - rewards: observed rewards of shape [T]
-        - arms: pulled arms of shape [T]
-        - truth: true arm values of shape [K]
-        - K: number of arms
-        - inequality: bernstein, bennett or hoeffding
-
-    OUTPUT:
-        - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
-    """
-    Tw = np.maximum([np.sum(arms == w) for w in range(K)], 1)
-    means = np.array([np.mean(rewards[arms == w]) for w in range(K)])
-    var = np.array([np.var(rewards[arms == w]) for w in range(K)])
-    
-    # Treatment effect estimate
-    estimate = means[-1] - means[:-1]
-    
-    # Inequality parameter: maximum proxy
-    YW_ctr = np.column_stack([(rewards - means[w]) / Tw[w] * (arms == w) for w in range(K)])
-    M = np.max(np.abs(YW_ctr[:, -1:] - YW_ctr[:, :-1]), 0) 
-    
-    # Inequality parameter: variance proxy
-    v = var[-1] / Tw[-1] + var[:-1] / Tw[:-1]
-    
-    if inequality == 'bernstein':
-        ci_radius = get_bernstein_radius(M, v, delta)
-    elif inequality == 'bennett':
-        ci_radius = np.array([get_bennett_radius(M[w], v[w], delta) for w in range(K - 1)])
-    elif inequality == 'hoeffding':
-        ci_radius = np.array([get_hoeffding_radius(Tw[w], M[w], v[w], delta) for w in range(K - 1)])
-    else:
-        raise ValueError(f'Cannot understand inequality type {inequality}')
-        
-    # Other statistics
-    bias = estimate - (truth[-1] - truth[:-1])
-    cover = (np.abs(bias) < ci_radius).astype(np.float_)
-    sqerror = bias ** 2
-    stderr = np.sqrt(v)
-    contrast_truth = truth[-1] - truth[:-1]
-    tstat = bias / stderr # note this is not really a t-stat, need to fix names
-    
-    # Store everything in the same order as aw_contrasts
-    out = np.stack([
-        contrast_truth,
-        estimate, 
-        bias,
-        sqerror,
-        stderr,
-        tstat,
-        cover,
-        ci_radius,
-    ])
-    return out
     
 
 def wdecorr_stats(arms, rewards, K, W_lambdas, truth, alpha=0.10):
@@ -383,3 +373,150 @@ def sample_mean(rewards, arms, K):
     Y = expand(rewards, arms, K)
     estimate = np.cumsum(W * Y, 0) / np.maximum(np.cumsum(W, 0), 1)
     return estimate
+    
+    
+# 
+# def form_predictions(outcomes, selector, default_prediction):
+#     means = np.cumsum(outcomes * selector) / np.maximum(1, np.cumsum(selector))
+#     lagged_means = np.roll(means, 1)
+#     lagged_means[0] = default_prediction
+#     return lagged_means
+# 
+# 
+# def estimate_average_treatment_effect_gamma_mixture(outcomes, treatments, propensity,
+#                                       support_bounds, expected_outcome_noise,
+#                                       p_min, # <--------- CHANGED
+#                                       optimized_t, y1_predictions=None,
+#                                       y0_predictions=None, coverage_alpha=0.05,
+#                                       alpha_opt=0.05):
+#     support_center = (support_bounds[0] + support_bounds[1]) / 2.0
+#     v_opt = (optimized_t * expected_outcome_noise
+#              * (1 / propensity + 1 / (1 - propensity)))
+#     if y1_predictions is None:
+#         y1_predictions = form_predictions(outcomes, treatments == 1,
+#                                           support_center)
+#     if y0_predictions is None:
+#         y0_predictions = form_predictions(outcomes, treatments == 0,
+#                                           support_center)
+# 
+#     tau_hat = y1_predictions - y0_predictions
+#     weights = (treatments - propensity) / (propensity * (1 - propensity))
+#     predictions = np.where(treatments == 1, y1_predictions, y0_predictions)
+#     Xt = tau_hat + weights * (outcomes - predictions)
+#     St = np.cumsum(Xt)
+#     Vt = np.cumsum((Xt - tau_hat)**2)
+#     #    p_min = min(propensity, 1 - propensity)  # <--------- CHANGED
+#     support_diameter = support_bounds[1] - support_bounds[0]
+#     c = 2 * support_diameter / p_min
+#     t_array = np.arange(1.0, len(outcomes) + 1.0)
+#     p_value = np.exp(-boundaries.gamma_exponential_log_mixture(
+#              St, Vt, v_opt, c, alpha_opt=alpha_opt / 2))
+#     confidence_radius = (
+#         1.0 / t_array * boundaries.gamma_exponential_mixture_bound(
+#             Vt, coverage_alpha / 2, v_opt, c, alpha_opt=alpha_opt / 2))
+#     return pd.DataFrame(collections.OrderedDict([
+#         ('t', t_array),
+#         ('point_estimate', St / t_array),
+#         ('upper_confidence_bound', np.minimum(
+#             support_diameter, St / t_array + confidence_radius)),
+#         ('lower_confidence_bound', np.maximum(
+#             -support_diameter, St / t_array - confidence_radius)),
+#         ('p_value', np.minimum(p_value, 1.0))]))
+# 
+# 
+# 
+# def howard_stats(outcomes, treatments, propensity, truth, K, decay_rate, delta=0.10):
+#     """
+#     Compute the population bernstein confidence interval, plugging in sample values.
+#     Reference: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2827893/.
+# 
+#     INPUT:
+#         - rewards: observed rewards of shape [T]
+#         - arms: pulled arms of shape [T]
+#         - truth: true arm values of shape [K]
+#         - K: number of arms
+#         - inequality: bernstein, bennett or hoeffding
+# 
+#     OUTPUT:
+#         - sample mean statistics with population Bernstein confidence interval of arm values: [estimate, S.E., bias, (1-alpha)-coverage, t-statistic, MSE, confidence_interval_radius, truth]
+#     """
+#     means = np.empty(K)
+#     ci_radius = np.empty(K)
+#     T = len(outcomes)
+#     stderr = np.empty(K)
+# 
+#     for w in range(K):
+# 
+#         optimized_t = int(np.sum(np.arange(1, T+1)**-decay_rate))
+#         sigma = outcomes[treatments == w].std()
+# 
+#         results = estimate_value_normal_mixture(
+#             outcomes=outcomes,
+#             treatments=treatments,
+#             propensity=propensity,
+#             arm_index=w,
+#             expected_outcome_noise=sigma,
+#             coverage_alpha=delta,
+#             alpha_opt=delta,
+#             optimized_t=optimized_t
+#         )
+# 
+#         Tw = int(np.sum(treatments == w))
+#         result = results.iloc[Tw]
+#         means[w] = result['point_estimate']
+#         ci_radius[w] = (result['upper_confidence_bound'] - result['lower_confidence_bound'])/2
+#         stderr[w] = outcomes[treatments == w].std() / np.sqrt(Tw)
+# 
+#     bias = means - truth
+#     cover = (np.abs(bias) < ci_radius).astype(np.float_)
+#     error = bias ** 2
+# 
+#     tstat = bias / stderr  # Note this is not a t-stat, need to fix names
+#     out = np.stack((means, stderr, bias, cover, tstat, error, ci_radius, truth))
+#     return out
+# 
+# 
+# 
+# 
+# def estimate_average_treatment_effect_normal_mixture(
+#         outcomes, treatments, propensity,
+#         expected_outcome_noise,
+#         optimized_t, 
+#         y1_predictions=None,
+#         y0_predictions=None, 
+#         coverage_alpha=0.05,
+#         alpha_opt=0.05):
+# 
+#     if y1_predictions is None:
+#         y1_predictions = form_predictions(outcomes, treatments == 1, 0)
+#     if y0_predictions is None:
+#         y0_predictions = form_predictions(outcomes, treatments == 0, 0)
+# 
+#     # ---- begin change -----    
+#     v_opt = expected_outcome_noise * np.sum(1 / propensity[:optimized_t] + 1 / (1 - propensity[:optimized_t]))
+#     # --- end change ----
+# 
+#     tau_hat = y1_predictions - y0_predictions
+#     weights = (treatments - propensity) / (propensity * (1 - propensity))
+#     predictions = np.where(treatments == 1, y1_predictions, y0_predictions)
+#     Xt = tau_hat + weights * (outcomes - predictions)
+#     St = np.cumsum(Xt)
+#     Vt = np.cumsum((Xt - tau_hat)**2)
+# 
+#     t_array = np.arange(1.0, len(outcomes) + 1.0)
+# 
+#     # ---- begin change ----
+#     p_value = np.exp(-boundaries.normal_log_mixture(
+#              St, Vt, v_opt, alpha_opt=alpha_opt, is_one_sided = False))
+#     confidence_radius = (
+#         1.0 / t_array * boundaries.normal_mixture_bound(
+#             Vt, coverage_alpha, v_opt, alpha_opt=alpha_opt, is_one_sided = False))
+#     # ---- end change -----
+# 
+#     return pd.DataFrame(collections.OrderedDict([
+#         ('t', t_array),
+#         ('point_estimate', St / t_array),
+#         ('upper_confidence_bound', St / t_array + confidence_radius),
+#         ('lower_confidence_bound', St / t_array - confidence_radius),
+#         ('p_value', np.minimum(p_value, 1.0))]))
+# 

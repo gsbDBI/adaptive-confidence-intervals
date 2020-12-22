@@ -93,10 +93,10 @@ truths = {
     'highSNR': np.array([.5, 1., 1.5])
 }
 Ts = [1_000, 5_000, 10_000, 50_000, 100_000]
-floor_decays = [.25, .5, .6, .7, .8, .9, .99]
+floor_decays = [.7] #[.25, .5, .6, .7, .8, .9, .99]
 initial = 5  # initial number of samples of each arm to do pure exploration
 exploration = 'TS'
-noise_scale = 1.0
+noise_scale = 1.
 
 
 # In[5]:
@@ -106,7 +106,7 @@ df_stats = []
 df_lambdas = []
 
 
-# In[10]:
+# In[6]:
 
 
 # Run simulations
@@ -123,12 +123,7 @@ for s in range(num_sims):
     floor_decay = choice(floor_decays)
 
     """ Generate data """
-    if noise_func == 'uniform':
-        noise = np.random.uniform(-noise_scale, noise_scale, size=(T, K))
-        R = noise_scale * 2
-    else:
-        noise = np.random.exponential(noise_scale, size=(T, K)) - noise_scale
-        R = -np.log(0.001) * noise_scale
+    noise = np.random.uniform(-noise_scale, noise_scale, size=(T, K))
     ys = truth + noise
 
     """ Run experiment """
@@ -167,9 +162,8 @@ for s in range(num_sims):
         propscore=aw_stats(scores, wts_propscore, truth),
         lvdl=aw_stats(scores, wts_lvdl, truth),
         two_point=aw_stats(scores, wts_twopoint, truth),
-        bernstein=finite_sample_inequality_stats(rewards, arms, truth, K, inequality='bernstein'),
-        bennett=finite_sample_inequality_stats(rewards, arms, truth, K, inequality='bennett'),
-        hoeffding=finite_sample_inequality_stats(rewards, arms, truth, K, inequality='hoeffding'),
+        beta_bernoulli=beta_bernoulli_stats(rewards, arms, truth, K, floor_decay, alpha=.1),
+        gamma_exponential=gamma_exponential_stats(rewards, arms, truth, K, floor_decay, c=2, expected_noise_variance=1/3, alpha=.1),
     )
     
     # # add estimates of W_decorrelation
@@ -188,13 +182,9 @@ for s in range(num_sims):
         propscore=aw_contrasts(scores, wts_propscore, truth),
         lvdl=aw_contrasts(scores, wts_lvdl, truth),
         two_point=aw_contrasts(scores, wts_twopoint, truth),
-        bernstein=finite_sample_inequality_contrast(rewards, arms, truth, K, inequality='bernstein'),
-        bennett=finite_sample_inequality_contrast(rewards, arms, truth, K, inequality='bennett'),
-        hoeffding=finite_sample_inequality_contrast(rewards, arms, truth, K, inequality='hoeffding'),
     )
     
     
-
     """ Save results """
     config = dict(
         T=T,
@@ -258,7 +248,7 @@ for s in range(num_sims):
     print(f"Time passed {time()-start_time}s")
 
 
-# In[11]:
+# In[7]:
 
 
 df_stats = pd.concat(df_stats)
@@ -266,12 +256,11 @@ if len(df_lambdas) > 0:
     df_lambdas = pd.concat(df_lambdas)
 
 
-# In[12]:
+# In[8]:
 
 
 filename1 = compose_filename(f'stats', 'pkl')
 filename2 = compose_filename(f'lambdas', 'pkl')
-
 
 if on_sherlock():
     write_dir = get_sherlock_dir('adaptive-confidence-intervals', 'simulations', create=True)
@@ -286,7 +275,7 @@ if len(df_lambdas) > 0:
     df_lambdas.to_pickle(write_path2)
 
 
-# In[13]:
+# In[9]:
 
 
 print("All done.")

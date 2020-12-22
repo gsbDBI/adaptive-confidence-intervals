@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[27]:
 
 
 """
@@ -35,13 +35,13 @@ from getpass import getuser
 # magics removed
 
 
-# In[9]:
+# In[28]:
 
 
 start_time = time()
 
 
-# In[10]:
+# In[29]:
 
 
 def on_sherlock():
@@ -79,10 +79,10 @@ def get_sherlock_dir(project, *tail, create=True):
     return path
 
 
-# In[11]:
+# In[30]:
 
 
-num_sims = 200 if on_sherlock() else 1
+num_sims = 20 if on_sherlock() else 1
 
 # DGP specification
 # ----------------------------------------------------
@@ -92,7 +92,10 @@ truths = {
     'lowSNR': np.array([.9, 1., 1.1]),
     'highSNR': np.array([.5, 1., 1.5])
 }
-Ts = [1_000, 5_000, 10_000, 50_000, 100_000]
+if on_sherlock():
+    Ts = [1_000, 5_000, 10_000, 50_000, 100_000]
+else:
+    Ts = [100_000]
 floor_decays = [.7] #[.25, .5, .6, .7, .8, .9, .99]
 initial = 5  # initial number of samples of each arm to do pure exploration
 exploration = 'TS'
@@ -106,7 +109,7 @@ df_stats = []
 df_lambdas = []
 
 
-# In[13]:
+# In[32]:
 
 
 # Run simulations
@@ -158,12 +161,12 @@ for s in range(num_sims):
     """ Estimate arm values """
     # for each weighting scheme, return [estimate, S.E, bias, 90%-coverage, t-stat, mse, truth]
     stats = dict(
-        uniform=aw_stats(scores, wts_uniform, truth),
-        propscore=aw_stats(scores, wts_propscore, truth),
-        lvdl=aw_stats(scores, wts_lvdl, truth),
-        two_point=aw_stats(scores, wts_twopoint, truth),
-        beta_bernoulli=beta_bernoulli_stats(rewards, arms, truth, K, floor_decay, alpha=.1),
-        gamma_exponential=gamma_exponential_stats(rewards, arms, truth, K, floor_decay, c=2, expected_noise_variance=1/3, alpha=.1),
+        uniform=evaluate_aipw_stats(scores, wts_uniform, truth),
+        propscore=evaluate_aipw_stats(scores, wts_propscore, truth),
+        lvdl=evaluate_aipw_stats(scores, wts_lvdl, truth),
+        two_point=evaluate_aipw_stats(scores, wts_twopoint, truth),
+        beta_bernoulli=evaluate_beta_bernoulli_stats(rewards, arms, truth, K, floor_decay, alpha=.1),
+        gamma_exponential=evaluate_gamma_exponential_stats(rewards, arms, truth, K, floor_decay, c=2, expected_noise_variance=1/3, alpha=.1),
     )
     
     # # add estimates of W_decorrelation
@@ -178,14 +181,14 @@ for s in range(num_sims):
     
     """ Estimate contrasts """
     contrasts = dict(
-        uniform=aw_contrasts(scores, wts_uniform, truth),
-        propscore=aw_contrasts(scores, wts_propscore, truth),
-        lvdl=aw_contrasts(scores, wts_lvdl, truth),
-        two_point=aw_contrasts(scores, wts_twopoint, truth),
-        beta_bernoulli=beta_bernoulli_contrasts(rewards, arms, truth, K, floor_decay, alpha=.1),
-        gamma_exponential=gamma_exponential_contrasts(rewards, arms, truth, K, floor_decay, c=2, expected_noise_variance=1/3, alpha=.1),
+        uniform=evaluate_aipw_contrasts(scores, wts_uniform, truth),
+        propscore=evaluate_aipw_contrasts(scores, wts_propscore, truth),
+        lvdl=evaluate_aipw_contrasts(scores, wts_lvdl, truth),
+        two_point=evaluate_aipw_contrasts(scores, wts_twopoint, truth),
+        beta_bernoulli=evaluate_beta_bernoulli_contrasts(rewards, arms, truth, K, floor_decay, alpha=.1),
+        gamma_exponential=evaluate_gamma_exponential_contrasts(rewards, arms, truth, K, floor_decay, c=2, expected_noise_variance=1/3, alpha=.1),
     )
-    
+
     
     """ Save results """
     config = dict(
@@ -208,12 +211,11 @@ for s in range(num_sims):
     saved_timepoints = list(range(0, T, T // 250)) + [T-1]
     for ratio in ratios:
         ratios[ratio] = ratios[ratio][saved_timepoints, :]
-
+    
     # tabulate arm values
     tabs_stats = []
     for method, stat in stats.items():
-        stat = np.row_stack([stat, np.abs(stat[2])])
-        tab_stats = pd.DataFrame({"statistic": ["estimate", "stderr", "bias", "90% coverage of t-stat", "t-stat", "mse", "CI_width", "truth", 'abserr'] * stat.shape[1],
+        tab_stats = pd.DataFrame({"statistic": ["estimate", "stderr", "bias", "90% coverage of t-stat", "t-stat", "mse", "CI_width", "truth"] * stat.shape[1],
                                   "policy": np.repeat(np.arange(K), stat.shape[0]),
                                   "value":  stat.flatten(order='F'),
                                   "method": method,
@@ -224,9 +226,7 @@ for s in range(num_sims):
     # tabulate arm contrasts
     tabs_contrasts = []
     for method, contrast in contrasts.items():
-        tabs_contrast = pd.DataFrame({"statistic": ["truth",
-                                                    "estimate", "bias", "mse",
-                                                    "stderr", "t-stat", "90% coverage of t-stat", "CI_width"] * contrast.shape[1],
+        tabs_contrast = pd.DataFrame({"statistic": ["estimate", "stderr", "bias", "90% coverage of t-stat", "t-stat", "mse", "CI_width", "truth"] * contrast.shape[1],
                                       "policy": np.repeat([f"(0,{k})" for k in np.arange(1, K)], contrast.shape[0]),
                                       "value": contrast.flatten(order='F'),
                                       "method": method,
@@ -250,7 +250,7 @@ for s in range(num_sims):
     print(f"Time passed {time()-start_time}s")
 
 
-# In[14]:
+# In[ ]:
 
 
 df_stats = pd.concat(df_stats)
@@ -258,7 +258,7 @@ if len(df_lambdas) > 0:
     df_lambdas = pd.concat(df_lambdas)
 
 
-# In[15]:
+# In[ ]:
 
 
 filename1 = compose_filename(f'stats', 'pkl')
@@ -277,7 +277,7 @@ if len(df_lambdas) > 0:
     df_lambdas.to_pickle(write_path2)
 
 
-# In[16]:
+# In[ ]:
 
 
 print("All done.")

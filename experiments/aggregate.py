@@ -1,5 +1,3 @@
-from adaptive_CI.saving import on_sherlock
-
 import seaborn as sns
 import pandas as pd
 import numpy as np
@@ -14,13 +12,9 @@ sns.set_context("notebook", font_scale=1.4)
 
 commit = "72121e"
 
-if on_sherlock():
-    base_dir = "/scratch/groups/athey/adaptive-confidence-intervals/vitorh/simulations/"
-else:
-    base_dir = "results/"
+base_dir = "/scratch/groups/athey/adaptive-confidence-intervals/vitorh/simulations/"
 stats_files = glob(f"{base_dir}/stats*{commit}*.pkl")
 print(f"Found {len(stats_files)} files associated with statistics.")
-
 
 
 dfs = []

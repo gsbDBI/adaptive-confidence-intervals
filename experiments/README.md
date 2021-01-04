@@ -8,7 +8,7 @@ This directory contains scripts to run experiments and make plots shown in the p
 - `jobfile-wdecorr.job`: SLURM job script to run compute_wdecorrelation_lambda.py.
 
 ## Instructions for running experiments and making plots
-1. `python compute_wdecorrelation_lambda.py {experiment_name} {arm values} {noise shape}` to precompute bias-variance tradeoff parameter _lambda_ of W-decorrelation. (make sure the experiment configuration is consistent with that in `script.py`).
+1. `python compute_wdecorrelation_lambda.py {experiment_name} {arm values} {noise shape}` to precompute bias-variance tradeoff parameter _lambda_ of W-decorrelation. (make sure the experiment configuration is consistent with that in `simulation.py`).
 2. `python simulation.py` to run experiments and save results in `./results/`.
 3. Open `plot-two-point-new.ipynb`, follow the instructions in the notebook to generate plots based on the saved results in `./results/`. 
 

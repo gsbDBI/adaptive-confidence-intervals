@@ -8,3 +8,4 @@ To reproduce results presented in the paper, please go to directory [../experime
 - `inference.py` contains helper functions to do inference, including computing scores and statistics of arm values and contrasts.
 - `saving.py` contains helping functions for better result-saving format. 
 - `weights.py` contains helper functions to compute evaluation weights. 
+- `inequalities.py` contains helper functions to compute Bernstein-typed, Bennett-typed, and Hoeffding-typed confidence intervals.

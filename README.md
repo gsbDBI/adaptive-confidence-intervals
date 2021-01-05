@@ -1,5 +1,15 @@
 # Adaptive Confidence Intervals
-Reproducible code for paper [_Confidence Intervals for Policy Evaluation in Adaptive Experiments_](https://arxiv.org/abs/1911.02768).
+Models for paper [_Confidence Intervals for Policy Evaluation in Adaptive Experiments_](https://arxiv.org/abs/1911.02768).
+<p align="center">
+  Table of contents </br>
+  <a href="##overview">Overview</a> •
+  <a href="##development-setup">Development Setup</a> •
+  <a href="##quickstart-with-model">Quickstart</a> •
+  <a href="##acknowledgements">Acknowledgements</a> 
+</p>
+
+---
+## Overview
 
 ---
 ## Development setup (recommended)

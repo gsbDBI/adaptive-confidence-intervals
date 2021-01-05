@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
 """
 This script runs simulations reported in our paper Confidence Intervals for Policy Evaluation in Adaptive Experiments (https://arxiv.org/abs/1911.02768)
 """
@@ -31,56 +25,8 @@ from os import makedirs, chmod
 from getpass import getuser
 
 
-# magics removed
-# magics removed
-
-
-# In[2]:
-
 
 start_time = time()
-
-
-# In[3]:
-
-
-def on_sherlock():
-    """ Checks if running locally or on sherlock """
-    return 'GROUP_SCRATCH' in os.environ
-
-
-def get_sherlock_dir(project, *tail, create=True):
-    """
-    Output consistent folder name in Sherlock.
-    If create=True and on Sherlock, also makes folder with group permissions.
-    If create=True and not on Sherlock, does not create anything.
-
-    '/scratch/groups/athey/username/project/tail1/tail2/.../tailn'.
-
-    >>> get_sherlock_dir('adaptive-inference')
-    '/scratch/groups/athey/adaptive-inference/vitorh'
-
-    >>> get_sherlock_dir('toronto')
-    '/scratch/groups/athey/toronto/vitorh/'
-
-    >>> get_sherlock_dir('adaptive-inference', 'experiments', 'exp_out')
-    '/scratch/groups/athey/adaptive-inference/vitorh/experiments/exp_out'
-    """
-    base = join("/", "scratch", "groups", "athey", project, getuser())
-    path = join(base, *tail)
-    if not exists(path) and create and on_sherlock():
-        makedirs(path, exist_ok=True)
-        # Correct permissions for the whole directory branch
-        chmod_path = base
-        chmod(base, 0o775)
-        for child in tail:
-            chmod_path = join(chmod_path, child)
-            chmod(chmod_path, 0o775)
-    return path
-
-
-# In[4]:
-
 
 num_sims = 20 if on_sherlock() else 1
 
@@ -102,14 +48,10 @@ exploration = 'TS'
 noise_scale = 1.
 
 
-# In[5]:
-
 
 df_stats = []
 df_lambdas = []
 
-
-# In[15]:
 
 
 # Run simulations
@@ -170,7 +112,7 @@ for s in range(num_sims):
         sample_mean_naive=evaluate_sample_mean_naive_stats(rewards, arms, truth, K, alpha=.1)
     )
     
-    # # add estimates of W_decorrelation
+    # add estimates of W_decorrelation
     W_name = f'wdecorr_results/W_lambdas_{experiment}-{noise_func}-{T}-{floor_decay}.npz'
     try:
         W_save = np.load(W_name)  # load presaved W-lambdas
@@ -252,21 +194,13 @@ for s in range(num_sims):
     print(f"Time passed {time()-start_time}s")
 
 
-# In[ ]:
-
 
 sample_mean_naive=evaluate_sample_mean_naive_contrasts(rewards, arms, truth, K, alpha=.1)
-
-
-# In[10]:
 
 
 df_stats = pd.concat(df_stats)
 if len(df_lambdas) > 0:
     df_lambdas = pd.concat(df_lambdas)
-
-
-# In[ ]:
 
 
 filename1 = compose_filename(f'stats', 'pkl')
@@ -283,9 +217,6 @@ write_path2 = os.path.join(write_dir, filename2)
 df_stats.to_pickle(write_path1)
 if len(df_lambdas) > 0:
     df_lambdas.to_pickle(write_path2)
-
-
-# In[ ]:
 
 
 print("All done.")

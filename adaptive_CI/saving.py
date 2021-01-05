@@ -45,3 +45,36 @@ def compose_filename(prefix, extension):
     basename = "_".join(ident)
     fname = f"{basename}.{extension}"
     return fname
+
+def on_sherlock():
+    """ Checks if running locally or on sherlock """
+    return 'GROUP_SCRATCH' in os.environ
+
+def get_sherlock_dir(project, *tail, create=True):
+    """
+    Output consistent folder name in Sherlock.
+    If create=True and on Sherlock, also makes folder with group permissions.
+    If create=True and not on Sherlock, does not create anything.
+
+    '/scratch/groups/athey/username/project/tail1/tail2/.../tailn'.
+
+    >>> get_sherlock_dir('adaptive-inference')
+    '/scratch/groups/athey/adaptive-inference/vitorh'
+
+    >>> get_sherlock_dir('toronto')
+    '/scratch/groups/athey/toronto/vitorh/'
+
+    >>> get_sherlock_dir('adaptive-inference', 'experiments', 'exp_out')
+    '/scratch/groups/athey/adaptive-inference/vitorh/experiments/exp_out'
+    """
+    base = join("/", "scratch", "groups", "athey", project, getuser())
+    path = join(base, *tail)
+    if not exists(path) and create and on_sherlock():
+        makedirs(path, exist_ok=True)
+        # Correct permissions for the whole directory branch
+        chmod_path = base
+        chmod(base, 0o775)
+        for child in tail:
+            chmod_path = join(chmod_path, child)
+            chmod(chmod_path, 0o775)
+    return path

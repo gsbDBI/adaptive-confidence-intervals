@@ -43,7 +43,7 @@ python setup.py develop
 - To reproduce results shown in the paper, use
 ```bash
 source activate adaptive
-cd experiments
+cd ./experiments/
 python compute_wdecorrelation_lambda.py
 python simulations.py
 ```

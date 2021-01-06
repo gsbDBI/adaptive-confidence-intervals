@@ -77,6 +77,7 @@ plot_contrast(df.query(f"policy=='(0,2)'"), hue_order=['two_point'], col_names=[
 
 
 ## Reproducibility 
+To reproduce results shown in the paper, do
 1. `python compute_wdecorrelation_lambda.py` to precompute bias-variance tradeoff parameter _lambda_ of W-decorrelation. (make sure the experiment configuration is consistent with that in `simulation.py`).
 2. `python simulation.py` to run experiments and save results in `./results/`.
 3. Open `plots.ipynb`, follow the instructions in the notebook to generate plots based on the saved results in `./results/`. 

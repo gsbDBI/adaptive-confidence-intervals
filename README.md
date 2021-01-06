@@ -53,4 +53,4 @@ Then open [`./experiments/plots.ipynb`](https://github.com/gsbDBI/adaptive-confi
 # Acknowledgements
 We are grateful for the generous financial support provided by the Sloan Foundation, Office of Naval Research grant N00014-17-1-2131, National Science Foundation grant DMS-1916163, Schmidt Futures, Golub Capital Social Impact Lab, and the Stanford Institute for Human-Centered Artificial Intelligence. Ruohan Zhan acknowledges generous support from the Total Innovation graduate fellowship. In addition, we thank Steve Howard, Sylvia Klosin, Sanath Kumar Krishnamurthy and Aaditya Ramdas for helpful advice.
 
-To reference, please cite the paper: [_Confidence Intervals for Policy Evaluation in Adaptive Experiments_](https://arxiv.org/abs/1911.02768).
+For reference, please cite the paper: [_Confidence Intervals for Policy Evaluation in Adaptive Experiments_](https://arxiv.org/abs/1911.02768).

@@ -82,6 +82,21 @@ def evaluate_sample_mean_naive_stats(outcomes, treatments, truth, K, weights=Non
     
 
 def evaluate_sample_mean_naive_contrasts(outcomes, treatments, arm_truth, K, weights=None, alpha=.1):
+    estimate = np.empty(K-1)
+    stderr = np.empty(K-1)
+    ci_radius = np.empty(K-1)
+    y_comp = outcomes[treatments == K-1]
+    Tw_comp = np.sum(treatments == K-1)
+    truth = arm_truth[-1] - arm_truth[:-1]
+    for w in range(K-1):
+        y = outcomes[treatments == w]
+        Tw = np.sum(treatments == w)
+        estimate[w] = np.mean(y) - np.mean(y_comp)
+        stderr[w] = se = np.sqrt(np.var(y) / Tw + np.var(y_comp) / Tw_comp)
+        ci_radius[w] = norm.ppf(1 - alpha/2) * se
+    return get_statistics(estimate, stderr, truth, ci_radius)    
+
+def evaluate_sample_mean_naive_contrasts(outcomes, treatments, arm_truth, K, weights=None, alpha=.1):
     T = len(outcomes)
     arm_estimate = np.empty(K)
     arm_variances = np.empty(K)

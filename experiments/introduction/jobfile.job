@@ -1,0 +1,10 @@
+#!/bin/bash
+#SBATCH --job-name=pnasintro
+#SBATCH --array=0-1000
+#SBATCH --ntasks=5
+#SBATCH --time=00:20:00
+#SBATCH --mem-per-cpu=4GB
+
+source activate adaptive
+cd ~/adaptive-confidence-intervals/experiments/introduction
+python intro_example_simulations.py

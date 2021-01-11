@@ -13,6 +13,8 @@ from getpass import getuser
 
 __all__ = [
     "compose_filename",
+    'on_sherlock',
+    'get_sherlock_dir'
 ]
 
 

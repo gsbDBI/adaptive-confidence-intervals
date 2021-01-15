@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[1]:
 
 
 import os
@@ -39,7 +39,7 @@ T = 1_000_000
 num_sims = 1000
 
 
-# In[6]:
+# In[4]:
 
 
 avg_estimate = np.empty(num_sims, dtype=float)
@@ -54,6 +54,8 @@ avg_student = np.empty(num_sims, dtype=float)
 aw_student = np.empty(num_sims, dtype=float)
 ipw_student = np.empty(num_sims, dtype=float)
 
+Tw = np.empty(num_sims, dtype=int)
+
 for s in range(num_sims):
     
     print(f'Simulation {s}')
@@ -63,18 +65,18 @@ for s in range(num_sims):
     
     # first half
     e1 = .5
-    w1 = np.random.binomial(n=1, p=e1, size=T//2) == 0
+    w1 = np.random.choice([0, 1], p=[e1, 1 - e1], size=T//2)
   
     # first arm mean at T/2
-    muhat1 = np.mean(y[:T//2][w1 == 0])
+    muhat0 = np.mean(y[:T//2][w1 == 0])
 
     # second arm mean at T/2 
-    # drawn from is from its sampling distribution N(0, 1/(T/4))
-    muhat2 = np.random.normal(loc=0, scale=1/np.sqrt(T/4), size=1) 
+    # drawn from is from its asymptotic sampling distribution N(0, 1/(T/4))
+    muhat1 = np.random.normal(loc=0, scale=1/np.sqrt(T/4), size=1) 
   
     # select arm of interest more often if its point estimate is larger
-    e2 = .9 if muhat1 > muhat2 else .1
-    w2 = np.random.binomial(n=1, p=e2, size=T//2) == 0
+    e2 = .9 if muhat0 > muhat1 else .1
+    w2 = np.random.choice([0, 1], p=[e2, 1 - e2], size=T//2)
   
     # concatenate first and second halves
     w = np.hstack([w1, w2])
@@ -84,6 +86,7 @@ for s in range(num_sims):
     avg_estimate[s] = np.mean(y[w == 0])
     avg_stderr[s] = np.std(y[w == 0]) / np.sqrt(np.sum(w == 0))
     avg_student[s] = avg_estimate[s] / avg_stderr[s]
+    Tw[s] = np.sum(w == 0)
     
     # ---- estimates: ipw ---- 
     ipw_estimate[s] = np.mean(y * (w == 0) / e)
@@ -108,11 +111,12 @@ for s in range(num_sims):
     aw_student[s] = aw_estimate[s] / aw_stderr[s]
 
 
-# In[10]:
+# In[ ]:
 
 
 data = pd.DataFrame({
     "T":T,
+    "Tw": Tw,
     "avg_estimate": avg_estimate,
     "avg_student": avg_student,
     "ipw_estimate": ipw_estimate,

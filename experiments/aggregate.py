@@ -1,34 +1,60 @@
-import seaborn as sns
 import pandas as pd
 import numpy as np
+
 
 import pickle
 from pickle import UnpicklingError
 from glob import glob
 from os.path import join
 
-sns.set_context("notebook", font_scale=1.4)
 
-
-commit = "72121e"
+commit = "4fb095"
 
 base_dir = "/scratch/groups/athey/adaptive-confidence-intervals/vitorh/simulations/"
-stats_files = glob(f"{base_dir}/stats*{commit}*.pkl")
+stats_files = glob(f"{base_dir}/contrast*{commit}*.pkl")
 print(f"Found {len(stats_files)} files associated with statistics.")
 
 
-dfs = []
-for k, file in enumerate(stats_files[:10]):
-    if k % 200 == 0:
-        print(f"Reading file {k}.")
+df = []
+for k, file in enumerate(stats_files):
+    print(f"Reading file {k}.")
     try:
-        dfs.append(pd.read_pickle(file))
+        df_tmp = pd.read_pickle(file)
+        df_tmp = df_tmp.query(
+            "statistic == ['mse', 'bias', 'CI_width', '90% coverage of t-stat'] and "
+            "method == ['uniform', 'lvdl', 'two_point',  'sample_mean_naive', 'gamma_exponential', 'W-decorrelation_15'] and "
+            "policy == [0, 1, 2]"
+        )
+        df_tmp['value'] = df_tmp['value'].astype(float)
+        df.append(df_tmp)
     except Exception as e:
         print(f"Error when reading file {file}.")
-        
-print(f"Loaded {len(dfs)} files.")
-df = pd.concat(dfs)
-df['value'] = df['value'].astype(float)
-decay_rates = np.sort(df['floor_decay'].unique())
-print("df shape:", df.shape)
-df.to_pickle(join(base_dir, 'total_results.pkl'))
+
+print('concatenating')
+df = pd.concat(df, ignore_index=True, verify_integrity=False, sort=False, copy=False)
+df.to_pickle(join(base_dir, f'arm_results.pkl'))
+    
+            
+
+
+
+base_dir = "/scratch/groups/athey/adaptive-confidence-intervals/vitorh/simulations/"
+stats_files = glob(f"{base_dir}/total_results_contrast*.pkl")
+stats_files = [f for f in stats_files if 'tight' not in f]
+print(f"Found {len(stats_files)} files.")
+
+df = []
+for k, file in enumerate(stats_files):
+    print(k, file)
+    try:
+        df_tmp = pd.read_pickle(file)
+        df_tmp = df_tmp.query(
+            "method == ['uniform', 'lvdl', 'two_point',  'sample_mean_naive', 'gamma_exponential']"
+        )
+        df.append(df_tmp)
+    except Exception as e:
+        print(f"Error when reading file {file}.")
+
+df = pd.concat(df, ignore_index=True, verify_integrity=False, sort=False, copy=False)
+df.to_pickle(join(base_dir, f'total_results_contrast_tight_all.pkl'))
+print(df.shape)

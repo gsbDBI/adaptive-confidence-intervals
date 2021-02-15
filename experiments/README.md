@@ -6,6 +6,13 @@ This directory contains scripts to run experiments and make plots shown in the p
 - `plots.ipynb`: Jupyter notebook to make plots shown in the paper using saved results in `./results/`.
 
 
+## Reproducibility 
+To reproduce results shown in the paper, do
+1. `python compute_wdecorrelation_lambda.py` to precompute bias-variance tradeoff parameter _lambda_ of W-decorrelation. (make sure the experiment configuration is consistent with that in `simulation.py`).
+2. `python simulation.py` to run experiments for `{num_sims}` times and save results in `./results/`.
+3. Open `plots.ipynb`, follow the instructions in the notebook to generate plots based on the saved results in `./results/`. 
+
+
 ## Quick start for running experiments using two-point allocation rate and making plots
 ### 1. Collecting bandits data
 ```python
@@ -76,9 +83,4 @@ plot_contrast(df.query(f"policy=='(0,2)'"), hue_order=['two_point'], col_names=[
 ```
 
 
-## Reproducibility 
-To reproduce results shown in the paper, do
-1. `python compute_wdecorrelation_lambda.py` to precompute bias-variance tradeoff parameter _lambda_ of W-decorrelation. (make sure the experiment configuration is consistent with that in `simulation.py`).
-2. `python simulation.py` to run experiments and save results in `./results/`.
-3. Open `plots.ipynb`, follow the instructions in the notebook to generate plots based on the saved results in `./results/`. 
 

@@ -3,16 +3,34 @@
 This simulation script produces most figures in the paper, with the _exception_ of Figure 1 in the introduction, and its counterpart Figure 13 in Appendix A5.
 
 
-**To non-Stanford members**
+### Reproducing figures (General).
 
-Each time this script is called, it selects a random configuration (e.g., a signal strength, an experiment horizon, etc) and completes a single simulation using that configuration.
+**Step 0 [Optional]**
 
-In order to produce the figures in our paper, we recommend that `simulations.ipynb` be run at least $10^6$ times.
+This is required to reproduce our Figure 11, but can be skipped if there is no interest in comparing to w-decorrelation. Run
+```
+python compute_wdecorrelation_lambda.py
+```
+to precompute bias-variance trade-off parameters for the W-decorrelation method. 
+
+**Step 1**
+
+Open `simulations.ipynb` on jupyter lab or jupyter notebook and run it. Or, on Terminal:
+```
+python simulations.py
+```
+The results will be stored in folder `results/`
+
+**Step 2**
+
+Open `plots.ipynb` on jupyter lab or jupyter notebook and run it. Plots will be stored in folder `figures/`.
 
 
 
-**To Stanford members with access to the Sherlock cluster**
+#### To Stanford users with access to Sherlock
 
-Each time this script is called on sherlock, it selects a random configuration (e.g., a signal strength, an experiment horizon, etc) and completes 200 simulations using that configuration.
-
-In order to produce the figures in our paper, we recommend that `simulations.ipynb` be run a few thousand times.
+Users with access to Stanford's Sherlock cluster can run simulations above in parallel via:
+```
+sbatch [-p PARTITION] jobfile-wdecorr.job
+sbatch [-p PARTITION] jobfile.job
+```

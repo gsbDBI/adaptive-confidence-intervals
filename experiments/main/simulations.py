@@ -9,31 +9,48 @@ This script runs simulations reported in our paper Confidence Intervals for Poli
 """
 
 import sys
-# sys.path.insert(0, "/home/rhzhan/adaptive-confidence-intervals/")
-from time import time
-from sys import argv
-from random import choice
+import subprocess
 import pickle
 import os
 import numpy as np
 import pandas as pd
-from adaptive_CI.experiments import run_mab_experiment
-from adaptive_CI.compute import stick_breaking
-from adaptive_CI.saving import *
-from adaptive_CI.inference import *
-from adaptive_CI.weights import *
 
-import os
-import subprocess
+from time import time
+from sys import argv
+from random import choice
 from time import time
 from os.path import dirname, realpath, join, exists
 from os import makedirs, chmod
 from getpass import getuser
 
+from adaptive_CI.experiments import run_mab_experiment
+from adaptive_CI.compute import stick_breaking
+from adaptive_CI.inference import *
+from adaptive_CI.weights import *
 
 # magics removed
 # magics removed
 
+
+# # Main Figures
+# 
+# This simulation script produces most figures in the paper, with the _exception_ of Figure 1 in the introduction, and its counterpart Figure 13 in Appendix A5.
+# 
+# 
+# **To non-Stanford members**
+# 
+# Each time this script is called, it selects a random configuration (e.g., a signal strength, an experiment horizon, etc) and completes a single simulation using that configuration.
+# 
+# In order to produce the figures in our paper, we recommend that this script be run at least $10ˆ5$ times.
+# 
+# 
+# 
+# **To Stanford members with access to the Sherlock cluster**
+# 
+# Each time this script is called on sherlock, it selects a random configuration (e.g., a signal strength, an experiment horizon, etc) and completes 200 simulations using that configuration.
+# 
+# In order to produce the figures in our paper, we recommend that this script be run a few thousand times.
+# 
 
 # In[2]:
 
@@ -45,12 +62,18 @@ start_time = time()
 
 
 def on_sherlock():
-    """ Checks if running locally or on sherlock """
+    """ 
+    Note: This can be ignored by non-Stanford members.
+
+    Checks if running on Stanford's Sherlock cluster
+    """
     return 'GROUP_SCRATCH' in os.environ
 
 
 def get_sherlock_dir(project, *tail, create=True):
     """
+    Note: This can be ignored by non-Stanford members.
+    
     Output consistent folder name in Sherlock.
     If create=True and on Sherlock, also makes folder with group permissions.
     If create=True and not on Sherlock, does not create anything.
@@ -79,6 +102,36 @@ def get_sherlock_dir(project, *tail, create=True):
     return path
 
 
+def compose_filename(prefix, extension):
+    """
+    Creates a unique filename based on Github commit id and time.
+    Useful when running in parallel on server.
+
+    INPUT:
+        - prefix: file name prefix
+        - extension: file extension
+
+    OUTPUT:
+        - fname: unique filename
+    """
+    # Tries to find a commit hash
+    try:
+        commit = subprocess            .check_output(['git', 'rev-parse', '--short', 'HEAD'],
+                          stderr=subprocess.DEVNULL)\
+            .strip()\
+            .decode('ascii')
+    except subprocess.CalledProcessError:
+        commit = ''
+
+    # Other unique identifiers
+    rnd = str(int(time() * 1e8 % 1e8))
+    sid = tid = jid = ''
+    ident = filter(None, [prefix, commit, jid, sid, tid, rnd])
+    basename = "_".join(ident)
+    fname = f"{basename}.{extension}"
+    return fname
+
+
 # In[4]:
 
 
@@ -96,7 +149,7 @@ if on_sherlock():
     Ts = [1_000, 5_000, 10_000, 50_000, 100_000]
 else:
     Ts = [100_000]
-floor_decays = [.7] #[.25, .5, .6, .7, .8, .9, .99]
+floor_decays = [.7]
 initial = 5  # initial number of samples of each arm to do pure exploration
 exploration = 'TS'
 noise_scale = 1.
@@ -177,7 +230,7 @@ for s in range(num_sims):
         for percentile, W_lambda in zip(W_save['percentiles'], W_save['W_lambdas']):
             stats[f'W-decorrelation_{percentile}'] = wdecorr_stats(arms, rewards, K, W_lambda, truth)
     except FileNotFoundError:
-        print(f'Could not find relevant w-decorrelation file {W_name}.')
+        print(f'Could not find relevant w-decorrelation file {W_name}. Ignoring.')
         
     
     """ Estimate contrasts """
@@ -252,41 +305,90 @@ for s in range(num_sims):
     print(f"Time passed {time()-start_time}s")
 
 
+# ----
+
+# ### Saving
+
+# Break down the output into different chunks, so it will be easier to pick what to load and plot.
+
+# Get the directory (the first statement here is specific to the Stanford cluster).
+
 # In[7]:
 
-
-df_stats = pd.concat(df_stats)
-if len(df_lambdas) > 0:
-    df_lambdas = pd.concat(df_lambdas)
-
-
-# In[8]:
-
-
-filename1 = compose_filename(f'stats', 'pkl')
-filename2 = compose_filename(f'lambdas', 'pkl')
-filename_contrast = compose_filename(f'contrast', 'pkl')
 
 if on_sherlock():
     write_dir = get_sherlock_dir('adaptive-confidence-intervals', 'simulations', create=True)
     print(f"saving at {write_dir}")
 else:
      write_dir = join(os.getcwd(), 'results')
-write_path1 = os.path.join(write_dir, filename1)
-write_path2 = os.path.join(write_dir, filename2)
+        
+
+
+# In[8]:
+
+
+df_stats = pd.concat(df_stats, ignore_index=True, sort=False)
+
+
+# Saving information about contrasts.
+
+# In[9]:
+
+
+filename_contrast = compose_filename(f'contrast', 'pkl')
 write_path_contrast = os.path.join(write_dir, filename_contrast)
 
-df_stats.to_pickle(write_path1)
 df_contrast = df_stats.query(
             'policy == "(0,2)" and '
             'statistic == ["mse", "bias", "90% coverage of t-stat", "CI_width"] and '
-            "method == ['uniform', 'lvdl', 'two_point',  'sample_mean_naive', 'gamma_exponential']")
+            "method == ['uniform', 'lvdl', 'two_point',  'sample_mean_naive', 'gamma_exponential', 'W-decorrelation_15']")
 df_contrast.to_pickle(write_path_contrast)
+
+
+# Save information about arms.
+
+# In[10]:
+
+
+filename_arms = compose_filename(f'arm', 'pkl')
+write_path_arms = os.path.join(write_dir, filename_arms)
+
+df_arms = df_stats.query(
+            'policy == [0, 1, 2] and '
+            'statistic == ["mse", "bias", "90% coverage of t-stat", "CI_width"] and '
+            "method == ['uniform', 'lvdl', 'two_point',  'sample_mean_naive', 'gamma_exponential', 'W-decorrelation_15']")
+df_arms.to_pickle(write_path_arms)
+
+
+# Save information about "t-stats" (i.e., our studentized 'statistics').
+
+# In[11]:
+
+
+filename_tstats = compose_filename(f'tstat', 'pkl')
+write_path_tstats = os.path.join(write_dir, filename_tstats)
+
+T_max = max(Ts)
+df_tstats = df_stats.query(
+    "method == ['uniform', 'lvdl', 'two_point',  'sample_mean_naive', 'gamma_exponential', 'W-decorrelation_15'] and "
+    "T == @T_max and "
+    "statistic == 't-stat'"
+)
+df_tstats.to_pickle(write_path_tstats)
+
+
+# Save information about $\lambda$ behavior, if appropriate.
+
+# In[12]:
+
+
+filename_lambdas = compose_filename(f'lambdas', 'pkl')
+write_path_lambdas = os.path.join(write_dir, filename_lambdas)
 if len(df_lambdas) > 0:
-    df_lambdas.to_pickle(write_path2)
+    df_lambdas = pd.concat(df_lambdas)
 
 
-# In[9]:
+# In[13]:
 
 
 print("All done.")

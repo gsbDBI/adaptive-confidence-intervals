@@ -37,19 +37,6 @@ conda activate adaptive_CI
 python setup.py develop
 ```
 
-# Quickstart with model
-
-- To use the adaptive inference methods, please follow the instructions in [./experiments/README.md](https://github.com/gsbDBI/adaptive-confidence-intervals/tree/master/experiments).
-- To reproduce results shown in the paper, use
-```bash
-source activate adaptive
-cd ./experiments/
-python compute_wdecorrelation_lambda.py
-python simulations.py
-```
-Then open [`./experiments/plots.ipynb`](https://github.com/gsbDBI/adaptive-confidence-intervals/blob/master/experiments/plots.ipynb) to load results and make plots. 
-
-
 # Acknowledgements
 We are grateful for the generous financial support provided by the Sloan Foundation, Office of Naval Research grant N00014-17-1-2131, National Science Foundation grant DMS-1916163, Schmidt Futures, Golub Capital Social Impact Lab, and the Stanford Institute for Human-Centered Artificial Intelligence. Ruohan Zhan acknowledges generous support from the Total Innovation graduate fellowship. In addition, we thank Steve Howard, Sylvia Klosin, Sanath Kumar Krishnamurthy and Aaditya Ramdas for helpful advice.
 

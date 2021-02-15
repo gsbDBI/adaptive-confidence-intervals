@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[1]:
+
+
 """
 This script runs simulations reported in our paper Confidence Intervals for Policy Evaluation in Adaptive Experiments (https://arxiv.org/abs/1911.02768)
 """
@@ -246,8 +252,7 @@ for s in range(num_sims):
     print(f"Time passed {time()-start_time}s")
 
 
-
-sample_mean_naive=evaluate_sample_mean_naive_contrasts(rewards, arms, truth, K, alpha=.1)
+# In[7]:
 
 
 df_stats = pd.concat(df_stats)
@@ -255,8 +260,12 @@ if len(df_lambdas) > 0:
     df_lambdas = pd.concat(df_lambdas)
 
 
+# In[8]:
+
+
 filename1 = compose_filename(f'stats', 'pkl')
 filename2 = compose_filename(f'lambdas', 'pkl')
+filename_contrast = compose_filename(f'contrast', 'pkl')
 
 if on_sherlock():
     write_dir = get_sherlock_dir('adaptive-confidence-intervals', 'simulations', create=True)
@@ -265,10 +274,19 @@ else:
      write_dir = join(os.getcwd(), 'results')
 write_path1 = os.path.join(write_dir, filename1)
 write_path2 = os.path.join(write_dir, filename2)
+write_path_contrast = os.path.join(write_dir, filename_contrast)
 
 df_stats.to_pickle(write_path1)
+df_contrast = df_stats.query(
+            'policy == "(0,2)" and '
+            'statistic == ["mse", "bias", "90% coverage of t-stat", "CI_width"] and '
+            "method == ['uniform', 'lvdl', 'two_point',  'sample_mean_naive', 'gamma_exponential']")
+df_contrast.to_pickle(write_path_contrast)
 if len(df_lambdas) > 0:
     df_lambdas.to_pickle(write_path2)
+
+
+# In[9]:
 
 
 print("All done.")

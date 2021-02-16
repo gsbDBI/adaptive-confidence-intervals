@@ -13,15 +13,24 @@ python compute_wdecorrelation_lambda.py
 ```
 to precompute bias-variance trade-off parameters for the W-decorrelation method. 
 
-**Step 1**
+**Step 1: Simulation**
 
 Open `simulations.ipynb` on jupyter lab or jupyter notebook and run it. Or, on Terminal:
 ```
 python simulations.py
 ```
-The results will be stored in folder `results/`
+The results will be stored in folder `results/`.
 
-**Step 2**
+
+**Step 2: Aggregation**
+
+Once the results are ready, they can be aggregated via the following script.
+```
+python aggregate.py
+```
+
+
+**Step 3: Plotting**
 
 Open `plots.ipynb` on jupyter lab or jupyter notebook and run it. Plots will be stored in folder `figures/`.
 
@@ -34,3 +43,4 @@ Users with access to Stanford's Sherlock cluster can run simulations above in pa
 sbatch [-p PARTITION] jobfile-wdecorr.job
 sbatch [-p PARTITION] jobfile.job
 ```
+Other users can ignore these files.
